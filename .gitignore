@@ -2,3 +2,5 @@
 /.ipynb_checkpoints/*
 /datasets
 /datasets/*
+/source/__pycache__
+/source/__pycache__/*
