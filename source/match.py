@@ -1,5 +1,6 @@
 import os
 import cv2
+import random
 import numpy as np
 import torch
 import kornia as K
@@ -31,8 +32,12 @@ class Match:
         self.matcher = KF.LoFTR(pretrained='outdoor')
         self.matcher.to(self.device).eval()
 
-        print(f"=========Match {self.image_name1} and {self.image_name2}=========")
+        print(f"=========Matching {self.image_name1} and {self.image_name2}=========")
         self.get_matches()
+        print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
+        self.draw_matches()
+        print(f"=========Done drawing matches for {self.image_name1} and {self.image_name2}=========")
+
 
 
     def get_matches(self) -> None:
@@ -57,15 +62,36 @@ class Match:
             self.inliers = np.zeros(len(self.indices1))
             
     
+    def rescale_image(self, image:'np.array') -> 'np.array':
+        self.scale = 840/max(image.shape[0], image.shape[1])
+        self.w = int(image.shape[1] * self.scale)
+        self.h = int(image.shape[0] * self.scale)
+        image = cv2.resize(image, (self.w, self.h))
+        return image
+
     def load_torch_images(self, image:'np.array') -> 'K.Tensor':
-        scale = 840/max(image.shape[0], image.shape[1])
-        w = int(image.shape[1] * scale)
-        h = int(image.shape[0] * scale)
-        image = cv2.resize(image, (w, h))
+        image = self.rescale_image(image)
         image = K.image_to_tensor(image, False).float() /255
         image = K.color.bgr_to_rgb(image)
         image = image.to(self.device)
         return image
+
+    def draw_matches(self)->None:
+        img1 = self.rescale_image(self.image1)
+        img2 = self.rescale_image(self.image2)
+        concatImg = np.concatenate((img1, img2), axis=1)
+
+
+        for (p1, p2) in random.sample(list(zip(self.indices1, self.indices2)), 50):
+            starting_point = (int(p1[0]), int(p1[1]))
+            ending_point = (int(p2[0] + img1.shape[1]), int(p2[1]))
+            cv2.circle(concatImg, starting_point, 5, (0, 255, 0), -1)
+            cv2.circle(concatImg, ending_point, 5, (0, 255, 0), -1)
+            cv2.line(concatImg, starting_point, ending_point, (0, 255, 0), 2)
+        cv2.imwrite(os.path.join(self.dataset_path, "matches", f"{self.image_name1}-{self.image_name2}.png"), concatImg)
+
+
+
 
 
 
