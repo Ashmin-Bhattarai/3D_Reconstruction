@@ -45,7 +45,7 @@ class Match:
             os.makedirs(os.path.join(self.dataset_path, "features"))
 
         if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")):
-            print(f"=========Matching {self.image_name1} and {self.image_name2}=========")
+            print(f"\n=========Matching {self.image_name1} and {self.image_name2}=========")
             self.get_matches()
             print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
             self.store_data()
@@ -55,7 +55,7 @@ class Match:
 
         else:
             self.load_data()
-            print(f"=========Loaded {self.image_name1}-{self.image_name2}.pkl==========")
+            print(f"\n=========Loaded {self.image_name1}-{self.image_name2}.pkl==========")
 
 
     def get_matches(self) -> None:
@@ -125,7 +125,13 @@ class Match:
     def draw_matches(self)->None:
         # img1 = self.rescale_image(self.image1)
         # img2 = self.rescale_image(self.image2)
-        concatImg = np.concatenate((self.image1, self.image2), axis=1)
+
+        concatImg = np.zeros((max(self.image1.shape[0], self.image2.shape[0]), self.image1.shape[1] + self.image2.shape[1], 3), dtype=np.uint8) 
+        concatImg[:, :] = (255, 255, 255)
+        concatImg[:self.image1.shape[0], :self.image1.shape[1], :3] = self.image1
+        concatImg[:self.image2.shape[0], self.image1.shape[1]:, :3] = self.image2
+
+        # concatImg = np.concatenate((self.image1, self.image2), axis=1)
 
         for (p1, p2) in random.sample(list(zip(self.scaled_indices1, self.scaled_indices2)), 50):
             starting_point = (int(p1[0]), int(p1[1]))
