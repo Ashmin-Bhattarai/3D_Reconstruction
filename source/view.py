@@ -11,7 +11,14 @@ class View:
         self.image = cv2.imread(os.path.join(image_path, image_name))
         self.keypoints = []
         self.descriptors = []
+        self.height = self.image.shape[0]
+        self.width = self.image.shape[1]
+        self.scale = 840/max(self.image.shape[0], self.image.shape[1])
+        self.scaled_height = int(self.image.shape[0] * self.scale)
+        self.scaled_width = int(self.image.shape[1] * self.scale)
+        self.scaled_image = cv2.resize(self.image, (self.scaled_width, self.scaled_height))
 
+    
         
 
 def create_views(dataset_path:'str') -> 'list[View]':
