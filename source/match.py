@@ -1,6 +1,7 @@
 import os
 import cv2
 import random
+import pickle
 import numpy as np
 import torch
 import kornia as K
@@ -28,19 +29,33 @@ class Match:
         self.scaled_indices1 = []
         self.scaled_indices2 = []
 
-        self.K = []
+        self.F = np.zeros((3, 3))
+        self.E = np.zeros((3, 3))
         self.inliers = []
+
 
         self.device = torch.device('cpu')
         self.matcher = KF.LoFTR(pretrained='outdoor')
         self.matcher.to(self.device).eval()
 
-        print(f"=========Matching {self.image_name1} and {self.image_name2}=========")
-        self.get_matches()
-        print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
-        # self.draw_matches()
-        print(f"=========Done drawing matches for {self.image_name1} and {self.image_name2}=========")
 
+
+        if not os.path.exists(os.path.join(self.dataset_path, "matches")):
+            os.makedirs(os.path.join(self.dataset_path, "matches"))
+            os.makedirs(os.path.join(self.dataset_path, "features"))
+
+        if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")):
+            print(f"=========Matching {self.image_name1} and {self.image_name2}=========")
+            self.get_matches()
+            print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
+            self.store_data()
+            print(f"=========Done Storing {self.image_name1}-{self.image_name2}.pkl==========")
+            self.draw_matches()
+            print(f"=========Done drawing matches for {self.image_name1} and {self.image_name2}=========")
+
+        else:
+            self.load_data()
+            print(f"=========Loaded {self.image_name1}-{self.image_name2}.pkl==========")
 
 
     def get_matches(self) -> None:
@@ -61,12 +76,34 @@ class Match:
 
 
         if len(self.indices1) > 7:
-            self.K, self.inliers = cv2.findFundamentalMat(self.scaled_indices1, self.scaled_indices2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
+            self.F, self.inliers = cv2.findFundamentalMat(self.scaled_indices1, self.scaled_indices2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
             self.inliers = self.inliers > 0
+            self.E = self.view2.K.T @ self.F @ self.view1.K
             print(">>>>>>>>>Number of inliers: ", self.number_of_inliers())
         else:
             self.K = np.zeros((3, 3))
+            self.E = np.zeros((3, 3))
             self.inliers = np.zeros(len(self.indices1))
+       
+    
+    def load_data(self) -> None:
+        PIK = os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")
+        with open(PIK, 'rb') as f:
+            data = pickle.load(f)
+        self.F = data[0]
+        self.E = data[1]
+        self.inliers = data[2]
+        self.indices1 = data[3]
+        self.indices2 = data[4]
+        self.scaled_indices1 = data[5]
+        self.scaled_indices2 = data[6]
+
+    def store_data(self) -> None:
+        PIK = os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")
+        data = [self.F, self.E, self.inliers, self.indices1, self.indices2, self.scaled_indices1, self.scaled_indices2]
+        with open(PIK, 'wb') as f:
+            pickle.dump(data, f)
+        
         
     def number_of_inliers(self) -> int:
         return np.sum(self.inliers)
@@ -88,8 +125,7 @@ class Match:
     def draw_matches(self)->None:
         # img1 = self.rescale_image(self.image1)
         # img2 = self.rescale_image(self.image2)
-        concatImg = np.concatenate((self.image1, self.image1), axis=1)
-
+        concatImg = np.concatenate((self.image1, self.image2), axis=1)
 
         for (p1, p2) in random.sample(list(zip(self.scaled_indices1, self.scaled_indices2)), 50):
             starting_point = (int(p1[0]), int(p1[1]))
@@ -98,8 +134,6 @@ class Match:
             cv2.circle(concatImg, ending_point, 5, (0, 255, 0), -1)
             cv2.line(concatImg, starting_point, ending_point, (0, 255, 0), 2)
         cv2.imwrite(os.path.join(self.dataset_path, "matches", f"{self.image_name1}-{self.image_name2}.png"), concatImg)
-
-
 
 
 
