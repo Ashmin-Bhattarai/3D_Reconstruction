@@ -4,3 +4,6 @@
 /datasets/*
 /source/__pycache__
 /source/__pycache__/*
+/.major/*
+/.vscode/*
+/reference/*
