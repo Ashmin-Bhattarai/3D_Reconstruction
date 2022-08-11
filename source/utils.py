@@ -40,3 +40,14 @@ def calculate_reprojection_error(point_3D, point_2D, K, R, t):
     reprojected_point = cv2.convertPointsFromHomogeneous(reprojected_point.T)[:, 0, :].T
     error = np.linalg.norm(point_2D.reshape((2, 1)) - reprojected_point)
     return error
+
+def check_triangulation(points, P):
+    """Checks whether reconstructed points lie in front of the camera"""
+
+    P = np.vstack((P, np.array([0, 0, 0, 1])))
+    reprojected_points = cv2.perspectiveTransform(src=points[np.newaxis], m=P)
+    z = reprojected_points[0, :, -1]
+    if (np.sum(z > 0)/z.shape[0]) < 0.75:
+        return False
+    else:
+        return True

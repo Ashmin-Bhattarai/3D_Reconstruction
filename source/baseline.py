@@ -17,7 +17,28 @@ class Baseline:
             R1,R2,t1,t2 = utils.get_extrinsic_from_E(-self.math_object.E)
 
         reprojection_error, points_3D = self.triangulate(K1= self.view1.K,K2= self.view2.K, R= R1, t= t1)
-        
+        if reprojection_error > 100.0 or not utils.check_triangulation(points_3D, np.hstack((R1, t1))):
+
+            # solution 2
+            reprojection_error, points_3D = self.triangulate(K1= self.view1.K,K2= self.view2.K, R= R1, t= t2)
+            if reprojection_error > 100.0 or not utils.check_triangulation(points_3D, np.hstack((R1, t2))):
+
+                # solution 3
+                reprojection_error, points_3D = self.triangulate(K1= self.view1.K,K2= self.view2.K, R=R2, t=t1)
+                if reprojection_error > 100.0 or not utils.check_triangulation(points_3D, np.hstack((R2, t1))):
+
+                    # solution 4
+                    return R2, t2
+
+                else:
+                    return R2, t1
+
+            else:
+                return R1, t2
+
+        else:
+            return R1, t1
+
     
     def triangulate(self, K1, K2, R, t):
         K1_inv = np.linalg.inv(K1)
@@ -48,7 +69,7 @@ class Baseline:
             point_3D = utils.get_3D_point(u1_normalized, P1, u2_normalized, P2)
 
             # calculate reprojection error
-            error = utils.calculate_reprojection_error(point_3D, u2[0:2], K, R, t)
+            error = utils.calculate_reprojection_error(point_3D, u2[0:2], self.view2.K, R, t)
             reprojection_error.append(error)
 
             # append point
