@@ -8,6 +8,7 @@ import kornia as K
 import kornia.feature as KF
 from kornia_moons.feature import *
 from PIL import Image
+from view import View
 
 
 class Match:
@@ -31,7 +32,7 @@ class Match:
 
         self.F = np.zeros((3, 3))
         self.E = np.zeros((3, 3))
-        self.inliers = []
+        self.mask = []
 
 
         self.device = torch.device('cpu')
@@ -76,14 +77,14 @@ class Match:
 
 
         if len(self.indices1) > 7:
-            self.F, self.inliers = cv2.findFundamentalMat(self.scaled_indices1, self.scaled_indices2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
-            self.inliers = self.inliers > 0
+            self.F, self.mask = cv2.findFundamentalMat(self.scaled_indices1, self.scaled_indices2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
+            self.mask = self.mask > 0
             self.E = self.view2.K.T @ self.F @ self.view1.K
             print(">>>>>>>>>Number of inliers: ", self.number_of_inliers())
         else:
             self.K = np.zeros((3, 3))
             self.E = np.zeros((3, 3))
-            self.inliers = np.zeros(len(self.indices1))
+            self.mask = np.zeros(len(self.indices1))
        
     
     def load_data(self) -> None:
@@ -92,7 +93,7 @@ class Match:
             data = pickle.load(f)
         self.F = data[0]
         self.E = data[1]
-        self.inliers = data[2]
+        self.mask = data[2]
         self.indices1 = data[3]
         self.indices2 = data[4]
         self.scaled_indices1 = data[5]
@@ -100,13 +101,13 @@ class Match:
 
     def store_data(self) -> None:
         PIK = os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")
-        data = [self.F, self.E, self.inliers, self.indices1, self.indices2, self.scaled_indices1, self.scaled_indices2]
+        data = [self.F, self.E, self.mask, self.indices1, self.indices2, self.scaled_indices1, self.scaled_indices2]
         with open(PIK, 'wb') as f:
             pickle.dump(data, f)
         
         
     def number_of_inliers(self) -> int:
-        return np.sum(self.inliers)
+        return np.sum(self.mask)
             
     
     # def rescale_image(self, image:'np.array') -> 'np.array':

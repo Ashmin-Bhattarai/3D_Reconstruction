@@ -51,3 +51,16 @@ def check_triangulation(points, P):
         return False
     else:
         return True
+
+
+def remove_outliers_using_F(view1, view2, match_object):
+    """Removes outlier keypoints using the fundamental matrix"""
+
+    pixel_points1, pixel_points2 = match_object.indices1, match_object.indices2
+    F, mask = cv2.findFundamentalMat(pixel_points1, pixel_points2, method=cv2.FM_RANSAC,
+                                     ransacReprojThreshold=0.9, confidence=0.99)
+    mask = mask.astype(bool).flatten()
+    match_object.inliers1 = np.array(match_object.indices1)[mask]
+    match_object.inliers2 = np.array(match_object.indices2)[mask]
+
+    return F

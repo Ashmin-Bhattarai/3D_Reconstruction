@@ -2,6 +2,7 @@ from baseline import Baseline
 import numpy as np
 import cv2
 import utils
+import os
 
 class SFM:
     def __init__(self, views, matches):
@@ -16,6 +17,12 @@ class SFM:
 
         for view in self.views:
             self.names.append(view.name)
+        
+        if not os.path.exists(self.views[0].dataset_path + '/points'):
+            os.makedirs(self.views[0].dataset_path + '/points')
+
+        # store results in a root_path/points
+        self.results_path = os.path.join(self.views[0].dataset_path, 'points')
 
     
     def get_index_of_view(self, view):
@@ -35,11 +42,24 @@ class SFM:
             self.done.append(view2)
         else:
             view1.R, view1.t = self.compute_pose_PNP(view1)
+            errors=[]
+
+            for i, old_view in enumerate(self.done):
+                match_object = self.matches[(old_view.name, view1.name)]
+                _ = utils.remove_outliers_using_F(old_view, view1, match_object)
+                self.remove_mapped_points(match_object, i)
+                _, rpe = self.triangulate(old_view, view1)
+                errors += rpe
 
     def reconstruct (self):
         baselineView1 = self.views[0]
         baselineView2 = self.views[1]
-        self.computePose (view1=baselineView1, view2=baselineView2, isBaseLine=True)
+        self.compute_pose(view1=baselineView1, view2=baselineView2, isBaseLine=True)
+        self.plot_points()
+        for i in range(2, len(self.views)):
+            view = self.views[i]
+            self.compute_pose(view1=self.views[i])
+            self.plot_points()
 
     def triangulate (self, view1, view2):
 
@@ -52,7 +72,7 @@ class SFM:
 
         match_object = self.matches[(view1.name, view2.name)]
         matchObject = self.matches[(view1.name, view2.name)]
-        pixel_points1, pixel_points2 = matchObject.indices1, matchObject.indices2
+        pixel_points1, pixel_points2 = matchObject.indices1, matchObject.indices2   #matchOject
         pixel_points1 = cv2.convertPointsToHomogeneous(pixel_points1)[:, 0, :]
         pixel_points2 = cv2.convertPointsToHomogeneous(pixel_points2)[:, 0, :]
         reprojection_error1 = []
@@ -83,4 +103,49 @@ class SFM:
         return reprojection_error1, reprojection_error2
 
     def compute_pose_PNP(self, view):
-        
+        points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))
+        for old_view in self.done:
+            match_object=self.matches[(old_view.name, view.name)]
+            point_2D=np.array(match_object.indices2).T.reshape((1, 2))
+            points_2D = np.concatenate((points_2D, point_2D), axis=0)
+
+            point_3D = self.points_3D[self.point_map[(self.get_index_of_view(old_view), match_object.indices2)], :].T.reshape((1, 3))
+            points_3D = np.concatenate((points_3D, point_3D), axis=0)
+        # compute new pose using solvePnPRansac
+        _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], self.K, None,
+                                        confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
+        R, _ = cv2.Rodrigues(R)
+        return R, t
+
+
+    def plot_points(self):
+            """Saves the reconstructed 3D points to ply files using Open3D"""
+
+            number = len(self.done)
+            # filename = os.path.join(self.results_path, str(number) + '_images.ply')
+            filename = os.path.join(self.results_path, str(number) + '_images.xyz')
+            # with open(filename, 'w') as f:
+            #     for point in self.points_3D:
+            #         f.write(str(point[0]) + ' ' + str(point[1]) + ' ' + str(point[2]) + '\n')
+            #     f.close()
+            for point in self.points_3D:
+                with open(filename, 'a') as f:
+                    f.write(str(point[0]) + ' ' + str(point[1]) + ' ' + str(point[2]) + '\n')
+                    f.close()
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(self.points_3D)
+            # o3d.io.write_point_cloud(filename, pcd)
+
+    def remove_mapped_points(self, match_object, image_idx):
+        """Removes points that have already been reconstructed in the completed views"""
+
+        inliers1 = []
+        inliers2 = []
+
+        for i in range(len(match_object.inliers1)):
+            if (image_idx, match_object.inliers1[i]) not in self.point_map:
+                inliers1.append(match_object.inliers1[i])
+                inliers2.append(match_object.inliers2[i])
+
+        match_object.inliers1 = inliers1
+        match_object.inliers2 = inliers2
