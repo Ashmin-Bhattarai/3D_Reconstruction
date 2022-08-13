@@ -24,14 +24,14 @@ class Match:
         self.view1 = view1
         self.view2 = view2
 
-        self.indices1 = []
-        self.indices2 = []
+        self.pixel_points1 = []
+        self.pixel_points2 = []
 
         self.inliers1 = []
         self.inliers2 = []
 
-        self.scaled_indices1 = []
-        self.scaled_indices2 = []
+        self.scaled_pixel_points1 = []
+        self.scaled_pixel_points2 = []
 
         self.F = np.zeros((3, 3))
         self.E = np.zeros((3, 3))
@@ -72,15 +72,16 @@ class Match:
         with torch.no_grad():
             output_dict = self.matcher(input_dict)
 
-        self.scaled_indices1 = output_dict["keypoints0"].cpu().numpy()
-        self.scaled_indices2 = output_dict["keypoints1"].cpu().numpy()
+        self.scaled_pixel_points1 = output_dict["keypoints0"].cpu().numpy()
+        self.scaled_pixel_points2 = output_dict["keypoints1"].cpu().numpy()
 
-        self.indices1 = self.scaled_indices1 // self.view1.scale
-        self.indices2 = self.scaled_indices2 // self.view2.scale
+        self.pixel_points1 = self.scaled_pixel_points1 // self.view1.scale
+        self.pixel_points2 = self.scaled_pixel_points2 // self.view2.scale
 
-
-        if len(self.indices1) > 7:
-            self.F, self.mask = cv2.findFundamentalMat(self.scaled_indices1, self.scaled_indices2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
+        self.indices1=[i for i in range(len(self.pixel_points1))]
+        self.indices2=[i for i in range(len(self.pixel_points2))]
+        if len(self.pixel_points1) > 7:
+            self.F, self.mask = cv2.findFundamentalMat(self.scaled_pixel_points1, self.scaled_pixel_points2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
             self.mask = self.mask.astype(bool).flatten()
             self.inliers1 = np.array(self.indices1)[self.mask]
             self.inliers2 = np.array(self.indices2)[self.mask]
@@ -89,7 +90,7 @@ class Match:
         else:
             self.K = np.zeros((3, 3))
             self.E = np.zeros((3, 3))
-            self.mask = np.zeros(len(self.indices1))
+            self.mask = np.zeros(len(self.pixel_points1))
        
     
     def load_data(self) -> None:
@@ -99,14 +100,16 @@ class Match:
         self.F = data[0]
         self.E = data[1]
         self.mask = data[2]
-        self.indices1 = data[3]
-        self.indices2 = data[4]
-        self.scaled_indices1 = data[5]
-        self.scaled_indices2 = data[6]
+        self.pixel_points1 = data[3]
+        self.pixel_points2 = data[4]
+        self.inliers1 = data[5]
+        self.inliers2 = data[6]
+        self.indices1 = data[7]
+        self.indices2 = data[8]
 
     def store_data(self) -> None:
         PIK = os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")
-        data = [self.F, self.E, self.mask, self.indices1, self.indices2, self.scaled_indices1, self.scaled_indices2]
+        data = [self.F, self.E, self.mask, self.pixel_points1, self.pixel_points2, self.inliers1, self.inliers2,self.indices1,self.indices2]
         with open(PIK, 'wb') as f:
             pickle.dump(data, f)
         
@@ -139,7 +142,7 @@ class Match:
 
         # concatImg = np.concatenate((self.image1, self.image2), axis=1)
 
-        for (p1, p2) in random.sample(list(zip(self.scaled_indices1, self.scaled_indices2)), 50):
+        for (p1, p2) in random.sample(list(zip(self.scaled_pixel_points1, self.scaled_pixel_points2)), 50):
             starting_point = (int(p1[0]), int(p1[1]))
             ending_point = (int(p2[0] + self.image1.shape[1]), int(p2[1]))
             cv2.circle(concatImg, starting_point, 5, (0, 255, 0), -1)

@@ -50,6 +50,8 @@ class SFM:
                 self.remove_mapped_points(match_object, i)
                 _, rpe = self.triangulate(old_view, view1)
                 errors += rpe
+            self.done.append(view1)
+            self.errors.append(np.mean(errors))
 
     def reconstruct (self):
         baselineView1 = self.views[0]
@@ -71,14 +73,13 @@ class SFM:
         P2 = np.hstack((view2.R, view2.t))
 
         match_object = self.matches[(view1.name, view2.name)]
-        matchObject = self.matches[(view1.name, view2.name)]
-        pixel_points1, pixel_points2 = matchObject.indices1, matchObject.indices2   #matchOject
+        pixel_points1, pixel_points2 = utils.get_pixel_points(match_object)   #matchOject
         pixel_points1 = cv2.convertPointsToHomogeneous(pixel_points1)[:, 0, :]
         pixel_points2 = cv2.convertPointsToHomogeneous(pixel_points2)[:, 0, :]
         reprojection_error1 = []
         reprojection_error2 = []
 
-        for i in range(len(pixel_points1)):
+        for i in range(len(match_object.inliers1)):
 
             u1 = pixel_points1[i, :]
             u2 = pixel_points2[i, :]
@@ -106,13 +107,15 @@ class SFM:
         points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))
         for old_view in self.done:
             match_object=self.matches[(old_view.name, view.name)]
-            point_2D=np.array(match_object.indices2).T.reshape((1, 2))
-            points_2D = np.concatenate((points_2D, point_2D), axis=0)
-
-            point_3D = self.points_3D[self.point_map[(self.get_index_of_view(old_view), match_object.indices2)], :].T.reshape((1, 3))
-            points_3D = np.concatenate((points_3D, point_3D), axis=0)
+            for i in range(len(match_object.inliers1)):
+                if (self.get_index_of_view(old_view), match_object.inliers1[i]) in self.point_map:
+                    
+                    point_2D=match_object.pixel_points2[match_object.inliers2[i]].T.reshape(1,2)
+                    points_2D=np.concatenate((points_2D,point_2D),axis=0)              
+                    point_3D = self.points_3D[self.point_map[(self.get_index_of_view(old_view), match_object.inliers1[i])], :].T.reshape((1, 3))
+                    points_3D = np.concatenate((points_3D, point_3D), axis=0)
         # compute new pose using solvePnPRansac
-        _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], self.K, None,
+        _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
                                         confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
         R, _ = cv2.Rodrigues(R)
         return R, t
