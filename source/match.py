@@ -27,6 +27,9 @@ class Match:
         self.pixel_points1 = []
         self.pixel_points2 = []
 
+        self.indices1 = []
+        self.indices2 = []
+        
         self.inliers1 = []
         self.inliers2 = []
 
@@ -37,6 +40,7 @@ class Match:
         self.E = np.zeros((3, 3))
         self.mask = []
 
+        self.matcher_SIFT = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
 
         self.device = torch.device('cpu')
         self.matcher = KF.LoFTR(pretrained='outdoor')
@@ -50,16 +54,41 @@ class Match:
 
         if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")):
             print(f"\n=========Matching {self.image_name1} and {self.image_name2}=========")
-            self.get_matches()
+            self.get_matches_SIFT()
             print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
             self.store_data()
             print(f"=========Done Storing {self.image_name1}-{self.image_name2}.pkl==========")
-            self.draw_matches()
+            # self.draw_matches()
             print(f"=========Done drawing matches for {self.image_name1} and {self.image_name2}=========")
 
         else:
             self.load_data()
             print(f"\n=========Loaded {self.image_name1}-{self.image_name2}.pkl==========")
+
+    def get_matches_SIFT(self):
+        
+        matches = self.matcher_SIFT.match(self.view1.descriptors, self.view2.descriptors)
+        matches = sorted(matches, key=lambda x: x.distance)
+
+        self.pixel_points1 = np.array([self.view1.keypoints[m.queryIdx].pt for m in matches])
+        self.pixel_points2 = np.array([self.view2.keypoints[m.trainIdx].pt for m in matches])
+
+        self.indices1 = [m.queryIdx for m in matches]
+        self.indices2 = [m.trainIdx for m in matches]
+
+        if len(self.pixel_points1) > 7:
+            self.F, self.mask = cv2.findFundamentalMat(self.pixel_points1, self.pixel_points2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
+            self.mask = self.mask.astype(bool).flatten()
+            self.inliers1 = np.array(self.indices1)[self.mask]
+            self.inliers2 = np.array(self.indices2)[self.mask]
+            self.E = self.view2.K.T @ self.F @ self.view1.K
+            print(">>>>>>>>>Number of inliers: ", self.number_of_inliers())
+        else:
+            self.K = np.zeros((3, 3))
+            self.E = np.zeros((3, 3))
+            self.mask = np.zeros(len(self.pixel_points1))
+
+
 
 
     def get_matches(self) -> None:
@@ -81,7 +110,7 @@ class Match:
         self.indices1=[i for i in range(len(self.pixel_points1))]
         self.indices2=[i for i in range(len(self.pixel_points2))]
         if len(self.pixel_points1) > 7:
-            self.F, self.mask = cv2.findFundamentalMat(self.scaled_pixel_points1, self.scaled_pixel_points2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
+            self.F, self.mask = cv2.findFundamentalMat(self.pixel_points1, self.pixel_points2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
             self.mask = self.mask.astype(bool).flatten()
             self.inliers1 = np.array(self.indices1)[self.mask]
             self.inliers2 = np.array(self.indices2)[self.mask]

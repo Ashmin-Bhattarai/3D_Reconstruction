@@ -1,7 +1,9 @@
+from posixpath import split
 import numpy as np
 import pandas as pd
 import cv2
 import os
+import glob
 
 
 class View:
@@ -25,8 +27,16 @@ class View:
         self.scaled_height = int(self.image.shape[0] * self.scale)
         self.scaled_width = int(self.image.shape[1] * self.scale)
         self.scaled_image = cv2.resize(self.image, (self.scaled_width, self.scaled_height))
+        
         self.R = np.zeros((3, 3), dtype=float)  # rotation matrix for the view
         self.t = np.zeros((3, 1), dtype=float)  # translation vector for the view
+
+        self.extract_features()
+
+    
+    def extract_features(self):
+        sift = cv2.SIFT_create()
+        self.keypoints, self.descriptors = sift.detectAndCompute(self.image, None)
 
 
 
@@ -44,9 +54,14 @@ class View:
 def create_views(dataset_path:'str') -> 'list[View]':
     views = []
     image_dir = os.path.join(dataset_path, 'images')
-    print(image_dir)
-    image_names = os.listdir(image_dir)
-    for image_name in image_names:
-        view = View(dataset_path, image_dir, image_name)
+    # print(image_dir)
+    # image_names = os.listdir(image_dir)
+    image_names1 = sorted(glob.glob(os.path.join(image_dir, '*.jpg')))
+    
+    # print(image_names)
+    # print(image_names1)
+    for image_name in image_names1:
+        imn = image_name.split('/')[-1]
+        view = View(dataset_path, image_dir, imn)
         views.append(view)
     return np.array(views)
