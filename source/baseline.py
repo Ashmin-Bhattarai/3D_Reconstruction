@@ -11,12 +11,16 @@ class Baseline:
         self.match_object = match_object
     
     def get_pose(self):
+        
         R1,R2,t1,t2 = utils.get_extrinsic_from_E(self.match_object.E)
-
+        # print('Essential Matrix: ', self.match_object.E)
+        # print('fundamental matrix: ', self.match_object.F)
+     
         if not utils.check_determinant(R1):
             R1,R2,t1,t2 = utils.get_extrinsic_from_E(-self.match_object.E)
 
         reprojection_error, points_3D = self.triangulate(K1= self.view1.K,K2= self.view2.K, R= R1, t= t1)
+
         if reprojection_error > 100.0 or not utils.check_triangulation(points_3D, np.hstack((R1, t1))):
 
             # solution 2
@@ -47,7 +51,7 @@ class Baseline:
         P2 = np.hstack((R, t))
 
         # only reconstructs the inlier points filtered using the fundamental matrix
-        pixel_points1, pixel_points2 = self.match_object.pixel_points1, self.match_object.pixel_points2
+        pixel_points1, pixel_points2 = np.array(self.match_object.pixel_points1)[self.match_object.mask], np.array(self.match_object.pixel_points2)[self.match_object.mask]
 
         # convert 2D pixel points to homogeneous coordinates
         pixel_points1 = cv2.convertPointsToHomogeneous(pixel_points1)[:, 0, :]

@@ -34,7 +34,13 @@ class SFM:
             matchObject = self.matches[(view1.name, view2.name)]
             baselinePose = Baseline(view1, view2, matchObject)
             view2.R, view2.t = baselinePose.get_pose()
+            # print('rotation matrix: ', view2.R)
+            # print('translation vector: ', view2.t)
+            
             rpe1, rpe2 = self.triangulate(view1, view2)
+            # print('reprojection error1: ', np.mean(rpe1))
+            # print('reprojection error2: ', np.mean(rpe2))
+            # input()
             self.errors.append(np.mean(rpe1))
             self.errors.append(np.mean(rpe2))
 
@@ -88,13 +94,17 @@ class SFM:
             u2_normalized = K2_inv.dot(u2)
 
             point_3D = utils.get_3D_point(u1_normalized, P1, u2_normalized, P2)
+           
             self.points_3D = np.concatenate((self.points_3D, point_3D.T), axis=0)
 
-            error1 = utils.calculate_reprojection_error(point_3D, u1[0:2], view1.K, view1.R, view1.t)
+            error1 = utils.calculate_reprojection_error(point_3D, u1[0:2], view2.K, view1.R, view1.t)
             reprojection_error1.append(error1)
-            error2 = utils.calculate_reprojection_error(point_3D, u2[0:2], view2.K, view2.R, view2.t)
+            error2 = utils.calculate_reprojection_error(point_3D, u2[0:2], view1.K, view2.R, view2.t)
             reprojection_error2.append(error2)
 
+            # print('u1',u1[0:2])
+
+            # input()
             # updates point_map with the key (index of view, index of point in the view) and value point_counter
             # multiple keys can have the same value because a 3D point is reconstructed using 2 points
             self.point_map[(self.get_index_of_view(view1), match_object.inliers1[i])] = self.point_counter

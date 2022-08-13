@@ -73,11 +73,13 @@ class Match:
         self.pixel_points1 = np.array([self.view1.keypoints[m.queryIdx].pt for m in matches])
         self.pixel_points2 = np.array([self.view2.keypoints[m.trainIdx].pt for m in matches])
 
-        self.indices1 = [m.queryIdx for m in matches]
-        self.indices2 = [m.trainIdx for m in matches]
+        # self.indices1 = [m.queryIdx for m in matches]
+        # self.indices2 = [m.trainIdx for m in matches]
+        self.indices1=[i for i in range(len(self.pixel_points1))]
+        self.indices2=[i for i in range(len(self.pixel_points2))]
 
         if len(self.pixel_points1) > 7:
-            self.F, self.mask = cv2.findFundamentalMat(self.pixel_points1, self.pixel_points2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
+            self.F, self.mask = cv2.findFundamentalMat(self.pixel_points1, self.pixel_points2, method=cv2.FM_RANSAC,ransacReprojThreshold=0.9, confidence=0.99)
             self.mask = self.mask.astype(bool).flatten()
             self.inliers1 = np.array(self.indices1)[self.mask]
             self.inliers2 = np.array(self.indices2)[self.mask]
