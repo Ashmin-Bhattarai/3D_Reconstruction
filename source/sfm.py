@@ -46,7 +46,7 @@ class SFM:
 
             for i, old_view in enumerate(self.done):
                 match_object = self.matches[(old_view.name, view1.name)]
-                _ = utils.remove_outliers_using_F(old_view, view1, match_object)
+                # _ = utils.remove_outliers_using_F(old_view, view1, match_object)
                 self.remove_mapped_points(match_object, i)
                 _, rpe = self.triangulate(old_view, view1)
                 errors += rpe
@@ -89,9 +89,9 @@ class SFM:
             point_3D = utils.get_3D_point(u1_normalized, P1, u2_normalized, P2)
             self.points_3D = np.concatenate((self.points_3D, point_3D.T), axis=0)
 
-            error1 = utils.calculate_reprojection_error(point_3D, u1[0:2], self.K, view1.R, view1.t)
+            error1 = utils.calculate_reprojection_error(point_3D, u1[0:2], view1.K, view1.R, view1.t)
             reprojection_error1.append(error1)
-            error2 = utils.calculate_reprojection_error(point_3D, u2[0:2], self.K, view2.R, view2.t)
+            error2 = utils.calculate_reprojection_error(point_3D, u2[0:2], view2.K, view2.R, view2.t)
             reprojection_error2.append(error2)
 
             # updates point_map with the key (index of view, index of point in the view) and value point_counter

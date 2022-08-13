@@ -27,6 +27,9 @@ class Match:
         self.indices1 = []
         self.indices2 = []
 
+        self.inliers1 = []
+        self.inliers2 = []
+
         self.scaled_indices1 = []
         self.scaled_indices2 = []
 
@@ -78,7 +81,9 @@ class Match:
 
         if len(self.indices1) > 7:
             self.F, self.mask = cv2.findFundamentalMat(self.scaled_indices1, self.scaled_indices2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
-            self.mask = self.mask > 0
+            self.mask = self.mask.astype(bool).flatten()
+            self.inliers1 = np.array(self.indices1)[self.mask]
+            self.inliers2 = np.array(self.indices2)[self.mask]
             self.E = self.view2.K.T @ self.F @ self.view1.K
             print(">>>>>>>>>Number of inliers: ", self.number_of_inliers())
         else:

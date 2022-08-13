@@ -11,10 +11,10 @@ class Baseline:
         self.match_object = match_object
     
     def get_pose(self):
-        R1,R2,t1,t2 = utils.get_extrinsic_from_E(self.math_object.E)
+        R1,R2,t1,t2 = utils.get_extrinsic_from_E(self.match_object.E)
 
         if not utils.check_determinant(R1):
-            R1,R2,t1,t2 = utils.get_extrinsic_from_E(-self.math_object.E)
+            R1,R2,t1,t2 = utils.get_extrinsic_from_E(-self.match_object.E)
 
         reprojection_error, points_3D = self.triangulate(K1= self.view1.K,K2= self.view2.K, R= R1, t= t1)
         if reprojection_error > 100.0 or not utils.check_triangulation(points_3D, np.hstack((R1, t1))):

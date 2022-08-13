@@ -14,8 +14,8 @@ dataset_path = os.path.join(root_path, 'datasets' ,dataset_folder_name)
 def main()->None:
     views = view.create_views(dataset_path)
     matches = match.create_matches(views)
-    sfm=sfm.SFM(views, matches)
-    sfm.reconstruct()
+    sfm_obj = sfm.SFM(views, matches)
+    sfm_obj.reconstruct()
     
     print("\n*****************Done matching*****************")
 
