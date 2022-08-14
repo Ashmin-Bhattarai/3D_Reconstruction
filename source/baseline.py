@@ -51,7 +51,7 @@ class Baseline:
         P2 = np.hstack((R, t))
 
         # only reconstructs the inlier points filtered using the fundamental matrix
-        pixel_points1, pixel_points2 = np.array(self.match_object.pixel_points1)[self.match_object.mask], np.array(self.match_object.pixel_points2)[self.match_object.mask]
+        pixel_points1, pixel_points2 = np.array(self.match_object.pixel_points1)[self.match_object.inliers1], np.array(self.match_object.pixel_points2)[self.match_object.inliers2]
 
         # convert 2D pixel points to homogeneous coordinates
         pixel_points1 = cv2.convertPointsToHomogeneous(pixel_points1)[:, 0, :]

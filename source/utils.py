@@ -66,6 +66,6 @@ def remove_outliers_using_F(view1, view2, match_object):
     return F
 
 def get_pixel_points(match_object):
-    pixel_points1=np.array(match_object.pixel_points1)[match_object.mask]
-    pixel_points2=np.array(match_object.pixel_points2)[match_object.mask]
+    pixel_points1=np.array(match_object.pixel_points1)[match_object.inliers1]
+    pixel_points2=np.array(match_object.pixel_points2)[match_object.inliers2]
     return pixel_points1, pixel_points2

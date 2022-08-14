@@ -56,6 +56,8 @@ class SFM:
                 # _ = utils.remove_outliers_using_F(old_view, view1, match_object)
                 self.remove_mapped_points(match_object, i)
                 _, rpe = self.triangulate(old_view, view1)
+                # print(np.mean(rpe))
+                # input()
                 errors += rpe
             self.done.append(view1)
             self.errors.append(np.mean(errors))
@@ -86,7 +88,11 @@ class SFM:
         reprojection_error1 = []
         reprojection_error2 = []
 
-        for i in range(len(match_object.inliers1)):
+        # print('len pixel_points1: ', len(pixel_points1))
+        # print('len inliers1: ', len(match_object.inliers1))
+        # input()
+
+        for i in range(len(pixel_points1)):
 
             u1 = pixel_points1[i, :]
             u2 = pixel_points2[i, :]
@@ -111,6 +117,10 @@ class SFM:
             self.point_map[(self.get_index_of_view(view1), match_object.inliers1[i])] = self.point_counter
             self.point_map[(self.get_index_of_view(view2), match_object.inliers2[i])] = self.point_counter
             self.point_counter += 1
+        
+        # print(np.mean(reprojection_error1))
+        # print(np.mean(reprojection_error2))
+        # input()
 
         return reprojection_error1, reprojection_error2
 
@@ -133,42 +143,53 @@ class SFM:
 
     def compute_pose_PNP_SIFT(self, view):
         points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))
-        distance=[]
-        for i,old_view in enumerate(self.done):
-            match_object=self.matches[(old_view.name, view.name)]
-            for j in range(len(match_object.indices1)):
-                # distance[(self.get_index_of_view(old_view),match_object.matches[j].distance)]=(match_object.indices1[j],match_object.indices2[j])
-                data={"view_index":self.get_index_of_view(old_view),
-                        "distance":match_object.matches[j].distance,
-                        "indices1":match_object.indices1[j],
-                        "indices2":match_object.indices2[j]}
-                if match_object.mask[j]:
-                    distance.append(data)
+        # distance=[]
+        # for i,old_view in enumerate(self.done):
+        #     match_object=self.matches[(old_view.name, view.name)]
+        #     for j in range(len(match_object.indices1)):
+        #         # distance[(self.get_index_of_view(old_view),match_object.matches[j].distance)]=(match_object.indices1[j],match_object.indices2[j])
+        #         data={"view_index":self.get_index_of_view(old_view),
+        #                 "distance":match_object.matches[j].distance,
+        #                 "indices1":match_object.indices1[j],
+        #                 "indices2":match_object.indices2[j]}
+        #         if match_object.mask[j]:
+        #             distance.append(data)
 
             
 
         
-        distance_sorted=sorted(distance, key=lambda x:x["distance"])[0 : len(view.keypoints)]
+        # distance_sorted=sorted(distance, key=lambda x:x["distance"])[0 : len(view.keypoints)]
         
         m=[]
         for i, old_view in enumerate(self.done):
             match_object=self.matches[(old_view.name, view.name)]
-            if i == 1:
+            if i == 0:
                 for mo in match_object.matches:
                     m.append([i,mo])
             else:
-                for j in range(len(match_object.match)):
+                for j in range(len(match_object.matches)):
                     if m[j][1].distance > match_object.matches[j].distance:
                         m[j][0]=i
                         m[j][1]=match_object.matches[j]
 
-                    
+       
         # match_sorted=sorted(m, key=lambda x:x[1].distance)[0 : len(view.keypoints)]
         match_sorted= sorted(m,key=lambda x:x[1].queryIdx)
         for match in match_sorted:
-            print('old_image_idx ,new_image_kp_idx, old_image_kp_idx',match[0],match[1].queryIdx,match[1].trainIdx)
-        
-        input()
+            old_image_idx, new_image_kp_idx, old_image_kp_idx = match[0], match[1].queryIdx, match[1].trainIdx
+            if (old_image_idx,old_image_kp_idx) in self.point_map:
+                # print('old_image_idx ,new_image_kp_idx, old_image_kp_idx',match[0],match[1].queryIdx,match[1].trainIdx)
+                point_2D=match_object.pixel_points2[new_image_kp_idx].T.reshape(1,2)
+                points_2D=np.concatenate((points_2D,point_2D),axis=0) 
+                point_3D = self.points_3D[self.point_map[(old_image_idx, old_image_kp_idx)], :].T.reshape((1, 3))
+                points_3D = np.concatenate((points_3D, point_3D), axis=0)
+        _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
+                                confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
+        R, _ = cv2.Rodrigues(R)
+
+        # print("points_2D",points_2D)
+        # input()
+        return R, t
 
 
 

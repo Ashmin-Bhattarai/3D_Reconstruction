@@ -68,7 +68,7 @@ class Match:
 
     def get_matches_SIFT(self):
         
-        self.matches = self.matcher_SIFT.match(self.view2.descriptors, self.view1.descriptors)
+        self.matches = self.matcher_SIFT.match(trainDescriptors=self.view1.descriptors, queryDescriptors=self.view2.descriptors)
         # matches = sorted(matches, key=lambda x: x.distance)
         trainidx= [m.trainIdx for m in self.matches]
         queryidx= [m.queryIdx for m in self.matches]
@@ -78,21 +78,31 @@ class Match:
         print('len of keypoints 2:', len(self.view2.keypoints))
         print('len of matches:', len(self.matches))
 
-        self.pixel_points1 = np.array([self.view1.keypoints[m.trainIdx].pt for m in self.matches])
-        self.pixel_points2 = np.array([self.view2.keypoints[m.queryIdx].pt for m in self.matches])
         
-        # self.indices1 = [m.queryIdx for m in matches]
-        # self.indices2 = [m.trainIdx for m in matches]
-        self.indices1=[i for i in range(len(self.pixel_points1))]
-        self.indices2=[i for i in range(len(self.pixel_points2))]
+        
+
+        
+        # self.pixel_points1x = np.array([self.view1.keypoints[m.trainIdx].pt for m in self.matches])
+
+        # self.pixel_points2 = np.array([self.view2.keypoints[m.queryIdx].pt for m in self.matches])
+        self.indices1 = [m.trainIdx for m in self.matches]
+        self.indices2 = [m.queryIdx for m in self.matches]
+
+        self.pixel_points1=np.array([key.pt for key in self.view1.keypoints])
+        self.pixel_points2=np.array([key.pt for key in self.view2.keypoints])
+
+        print(self.pixel_points1[0])
+        # self.indices1=[i for i in range(len(self.pixel_points1))]
+        # self.indices2=[i for i in range(len(self.pixel_points2))]
 
         if len(self.pixel_points1) > 7:
-            self.F, self.mask = cv2.findFundamentalMat(self.pixel_points1, self.pixel_points2, method=cv2.FM_RANSAC,ransacReprojThreshold=0.9, confidence=0.99)
+            self.F, self.mask = cv2.findFundamentalMat(np.array(self.pixel_points1)[self.indices1], np.array(self.pixel_points2)[self.indices2], method=cv2.FM_RANSAC,ransacReprojThreshold=0.9, confidence=0.99)
             self.mask = self.mask.astype(bool).flatten()
             self.inliers1 = np.array(self.indices1)[self.mask]
             self.inliers2 = np.array(self.indices2)[self.mask]
             self.E = self.view2.K.T @ self.F @ self.view1.K
-            print(">>>>>>>>>Number of inliers: ", self.number_of_inliers())
+            print(">>>>>>>>>Number of mask: ", self.number_of_inliers())
+            print(">>>>>>>>>Number of inliers1: ", len(self.inliers1))
         else:
             self.K = np.zeros((3, 3))
             self.E = np.zeros((3, 3))
