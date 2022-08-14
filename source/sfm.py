@@ -153,10 +153,18 @@ class SFM:
         m=[]
         for i, old_view in enumerate(self.done):
             match_object=self.matches[(old_view.name, view.name)]
-            for mo in match_object.matches:
-                m.append([i,mo])
-        match_sorted=sorted(m, key=lambda x:x[1].distance)[0 : len(view.keypoints)]
-        match_sorted= sorted(match_sorted,key=lambda x:x[1].queryIdx)
+            if i == 1:
+                for mo in match_object.matches:
+                    m.append([i,mo])
+            else:
+                for j in range(len(match_object.match)):
+                    if m[j][1].distance > match_object.matches[j].distance:
+                        m[j][0]=i
+                        m[j][1]=match_object.matches[j]
+
+                    
+        # match_sorted=sorted(m, key=lambda x:x[1].distance)[0 : len(view.keypoints)]
+        match_sorted= sorted(m,key=lambda x:x[1].queryIdx)
         for match in match_sorted:
             print('old_image_idx ,new_image_kp_idx, old_image_kp_idx',match[0],match[1].queryIdx,match[1].trainIdx)
         
