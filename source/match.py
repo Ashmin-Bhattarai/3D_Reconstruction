@@ -68,11 +68,18 @@ class Match:
 
     def get_matches_SIFT(self):
         
-        self.matches = self.matcher_SIFT.match(self.view1.descriptors, self.view2.descriptors)
+        self.matches = self.matcher_SIFT.match(self.view2.descriptors, self.view1.descriptors)
         # matches = sorted(matches, key=lambda x: x.distance)
+        trainidx= [m.trainIdx for m in self.matches]
+        queryidx= [m.queryIdx for m in self.matches]
+        print('max trainIdx:', max(trainidx))
+        print('max queryIdx:', max(queryidx))
+        print('len of keypoints 1:', len(self.view1.keypoints))
+        print('len of keypoints 2:', len(self.view2.keypoints))
+        print('len of matches:', len(self.matches))
 
-        self.pixel_points1 = np.array([self.view1.keypoints[m.queryIdx].pt for m in self.matches])
-        self.pixel_points2 = np.array([self.view2.keypoints[m.trainIdx].pt for m in self.matches])
+        self.pixel_points1 = np.array([self.view1.keypoints[m.trainIdx].pt for m in self.matches])
+        self.pixel_points2 = np.array([self.view2.keypoints[m.queryIdx].pt for m in self.matches])
         
         # self.indices1 = [m.queryIdx for m in matches]
         # self.indices2 = [m.trainIdx for m in matches]
