@@ -7,3 +7,5 @@
 /.major/*
 /.vscode/*
 /reference/*
+*.ipynb
+/*.ipynb

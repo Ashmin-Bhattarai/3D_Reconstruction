@@ -40,11 +40,12 @@ class Match:
         self.E = np.zeros((3, 3))
         self.mask = []
 
-        self.matcher_SIFT = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        self.matcher_SIFT = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
 
         self.device = torch.device('cpu')
         self.matcher = KF.LoFTR(pretrained='outdoor')
         self.matcher.to(self.device).eval()
+        self.matches=[]
 
 
 
@@ -56,7 +57,7 @@ class Match:
             print(f"\n=========Matching {self.image_name1} and {self.image_name2}=========")
             self.get_matches_SIFT()
             print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
-            self.store_data()
+            # self.store_data()
             print(f"=========Done Storing {self.image_name1}-{self.image_name2}.pkl==========")
             # self.draw_matches()
             print(f"=========Done drawing matches for {self.image_name1} and {self.image_name2}=========")
@@ -67,12 +68,12 @@ class Match:
 
     def get_matches_SIFT(self):
         
-        matches = self.matcher_SIFT.match(self.view1.descriptors, self.view2.descriptors)
-        matches = sorted(matches, key=lambda x: x.distance)
+        self.matches = self.matcher_SIFT.match(self.view1.descriptors, self.view2.descriptors)
+        # matches = sorted(matches, key=lambda x: x.distance)
 
-        self.pixel_points1 = np.array([self.view1.keypoints[m.queryIdx].pt for m in matches])
-        self.pixel_points2 = np.array([self.view2.keypoints[m.trainIdx].pt for m in matches])
-
+        self.pixel_points1 = np.array([self.view1.keypoints[m.queryIdx].pt for m in self.matches])
+        self.pixel_points2 = np.array([self.view2.keypoints[m.trainIdx].pt for m in self.matches])
+        
         # self.indices1 = [m.queryIdx for m in matches]
         # self.indices2 = [m.trainIdx for m in matches]
         self.indices1=[i for i in range(len(self.pixel_points1))]
@@ -137,10 +138,11 @@ class Match:
         self.inliers2 = data[6]
         self.indices1 = data[7]
         self.indices2 = data[8]
+        self.matches = data[9]
 
     def store_data(self) -> None:
         PIK = os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")
-        data = [self.F, self.E, self.mask, self.pixel_points1, self.pixel_points2, self.inliers1, self.inliers2,self.indices1,self.indices2]
+        data = [self.F, self.E, self.mask, self.pixel_points1, self.pixel_points2, self.inliers1, self.inliers2,self.indices1,self.indices2,self.matches]
         with open(PIK, 'wb') as f:
             pickle.dump(data, f)
         

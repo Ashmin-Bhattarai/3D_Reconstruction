@@ -1,3 +1,4 @@
+from ssl import DefaultVerifyPaths
 from baseline import Baseline
 import numpy as np
 import cv2
@@ -47,7 +48,7 @@ class SFM:
             self.done.append(view1)
             self.done.append(view2)
         else:
-            view1.R, view1.t = self.compute_pose_PNP(view1)
+            view1.R, view1.t = self.compute_pose_PNP_SIFT(view1)
             errors=[]
 
             for i, old_view in enumerate(self.done):
@@ -130,6 +131,37 @@ class SFM:
         R, _ = cv2.Rodrigues(R)
         return R, t
 
+    def compute_pose_PNP_SIFT(self, view):
+        points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))
+        distance=[]
+        for i,old_view in enumerate(self.done):
+            match_object=self.matches[(old_view.name, view.name)]
+            for j in range(len(match_object.indices1)):
+                # distance[(self.get_index_of_view(old_view),match_object.matches[j].distance)]=(match_object.indices1[j],match_object.indices2[j])
+                data={"view_index":self.get_index_of_view(old_view),
+                        "distance":match_object.matches[j].distance,
+                        "indices1":match_object.indices1[j],
+                        "indices2":match_object.indices2[j]}
+                distance.append(data)
+        distance_sorted=sorted(distance, key=lambda x:x["distance"])[0 : len(view.keypoints)]
+        
+        for i , old_view in enumerate(self.done):
+            
+            for j in range(len(distance_sorted)):
+                distance_sorted_element=distance_sorted[j]
+                match_object=self.matches[(self.names[distance_sorted_element["view_index"]], view.name)]
+                if (distance_sorted_element["view_index"], distance_sorted_element["indices1"]) in self.point_map:
+                    point_2D=match_object.pixel_points2[distance_sorted_element['indices2']].T.reshape(1,2)
+                    points_2D=np.concatenate((points_2D,point_2D),axis=0)              
+                    point_3D = self.points_3D[self.point_map[(distance_sorted_element["view_index"], distance_sorted_element["indices1"])], :].T.reshape((1, 3))
+                    points_3D = np.concatenate((points_3D, point_3D), axis=0)
+        _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
+                                confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
+        R, _ = cv2.Rodrigues(R)
+        return R, t
+
+        # print(distance_sorted)
+        # input()
 
     def plot_points(self):
             """Saves the reconstructed 3D points to ply files using Open3D"""
