@@ -19,9 +19,33 @@ def get_extrinsic_from_E (E):
     u, w, vt = np.linalg.svd(E)
     R1= u @ W @ vt
     R2 = u @ W_t @ vt
-    t1 = u[:, -1].reshape((3, 1))
-    t2 = - t1
+    # t1 = u[:, -1].reshape((3, 1))
+    # t2 = - t1
+    t1=get_translation(R1,E)
+    t2=get_translation(R2,E)
     return R1, R2, t1, t2
+
+def get_translation(R,E):
+    r_U,r_S,r_V_T=np.linalg.svd(R)
+    for i in range(len(r_S)):
+        if r_S[i]==0:
+            r_S[i]=0
+            continue
+        r_S[i]=1/r_S[i]
+
+    m=R.shape[0]
+    n=R.shape[1]
+
+    z=np.zeros((m,n))
+    for i in range(min(m,n)):
+        z[i][i]=r_S[i]
+    r_S_inv=z.T
+    translation_skew=E@r_V_T.T@r_S_inv@r_U.T
+    translation=np.zeros((3,1))
+    translation[0][0]=translation_skew[1][2]
+    translation[1][0]=translation_skew[0][2]
+    translation[2][0]=translation_skew[0][1]
+    return translation
 
 def check_determinant(R):
     if np.linalg.det(R) + 1.0 < 1e-9:

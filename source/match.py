@@ -10,8 +10,8 @@ from kornia_moons.feature import *
 # from PIL import Image
 from view import View
 
-match_technique = 'SIFT'
-# match_technique = 'LoFTR'
+# match_technique = 'SIFT'
+match_technique = 'LoFTR'
 
 class Match_info:
     def __init__(self,queryIdx,trainIdx,confidence,pixel_points1,pixel_points2) -> None:

@@ -5,8 +5,8 @@ import cv2
 import utils
 import os
 
-match_technique = 'SIFT'
-# match_technique = 'LoFTR'
+# match_technique = 'SIFT'
+match_technique = 'LoFTR'
 
 class SFM:
     def __init__(self, views, matches):
