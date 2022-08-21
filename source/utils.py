@@ -1,5 +1,17 @@
+from traceback import print_tb
 import numpy as np
 import cv2
+
+
+#svd from scratch
+def svd_homogeneous(A):
+    U, S, V_T = np.linalg.svd(A)
+    V= V_T.T
+    x=V[:, -1]
+    x_euclidean=x/x[-1]
+    x_euclidean=np.resize(x_euclidean,(3,1))
+    return x_euclidean
+    
 
 def get_extrinsic_from_E (E):
     W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
@@ -25,13 +37,23 @@ def get_3D_point(u1, P1, u2, P2):
                   [u2[0] * P2[2, 0] - P2[0, 0], u2[0] * P2[2, 1] - P2[0, 1], u2[0] * P2[2, 2] - P2[0, 2]],
                   [u2[1] * P2[2, 0] - P2[1, 0], u2[1] * P2[2, 1] - P2[1, 1], u2[1] * P2[2, 2] - P2[1, 2]]])
 
-    B = np.array([-(u1[0] * P1[2, 3] - P1[0, 3]),
-                  -(u1[1] * P1[2, 3] - P1[1, 3]),
-                  -(u2[0] * P2[2, 3] - P2[0, 3]),
-                  -(u2[1] * P2[2, 3] - P2[1, 3])])
+    # B = np.array([-(u1[0] * P1[2, 3] - P1[0, 3]),
+    #               -(u1[1] * P1[2, 3] - P1[1, 3]),
+    #               -(u2[0] * P2[2, 3] - P2[0, 3]),
+    #               -(u2[1] * P2[2, 3] - P2[1, 3])])
 
-    X = cv2.solve(A, B, flags=cv2.DECOMP_SVD)
-    return X[1]
+    B = np.array([(u1[0] * P1[2, 3] - P1[0, 3]),
+                  (u1[1] * P1[2, 3] - P1[1, 3]),
+                  (u2[0] * P2[2, 3] - P2[0, 3]),
+                  (u2[1] * P2[2, 3] - P2[1, 3])])
+
+    # print("B_raw", B_raw)
+    # print("A", A)
+    mat=np.append(A, B.reshape((4,1)), axis=1)
+
+    X=svd_homogeneous(mat)
+    # X = cv2.solve(A, B, flags=cv2.DECOMP_SVD)
+    return X
 
 def calculate_reprojection_error(point_3D, point_2D, K, R, t):
     """Calculates the reprojection error for a 3D point by projecting it back into the image plane"""

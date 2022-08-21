@@ -126,20 +126,58 @@ class SFM:
 
     def compute_pose_PNP(self, view):
         points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))
-        for old_view in self.done:
-            match_object=self.matches[(old_view.name, view.name)]
-            for i in range(len(match_object.inliers1)):
-                if (self.get_index_of_view(old_view), match_object.inliers1[i]) in self.point_map:
+        # for old_view in self.done:
+        #     match_object=self.matches[(old_view.name, view.name)]
+        #     for i in range(len(match_object.inliers1)):
+        #         if (self.get_index_of_view(old_view), match_object.inliers1[i]) in self.point_map:
                     
-                    point_2D=match_object.pixel_points2[match_object.inliers2[i]].T.reshape(1,2)
-                    points_2D=np.concatenate((points_2D,point_2D),axis=0)              
-                    point_3D = self.points_3D[self.point_map[(self.get_index_of_view(old_view), match_object.inliers1[i])], :].T.reshape((1, 3))
-                    points_3D = np.concatenate((points_3D, point_3D), axis=0)
-        # compute new pose using solvePnPRansac
+        #             point_2D=match_object.pixel_points2[match_object.inliers2[i]].T.reshape(1,2)
+        #             points_2D=np.concatenate((points_2D,point_2D),axis=0)              
+        #             point_3D = self.points_3D[self.point_map[(self.get_index_of_view(old_view), match_object.inliers1[i])], :].T.reshape((1, 3))
+        #             points_3D = np.concatenate((points_3D, point_3D), axis=0)
+        # # compute new pose using solvePnPRansac
+        # _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
+        #                                 confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
+        # R, _ = cv2.Rodrigues(R)
+        # return R, t
+        m=[]
+        for i, old_view in enumerate(self.done):
+            match_object=self.matches[(old_view.name, view.name)]
+            if i == 0:
+                for mo in match_object.matches:
+                    m.append([i,mo])
+            else:
+                pp2_list = [ pp for pp in match_object.pixel_points2]
+                for j in range(len(match_object.matches)):
+                    if match_object.matches[j].pixel_points2 in pp2_list:
+                        idx = pp2_list.index(match_object.matches[j].pixel_points2)
+                        if m[idx][1].confidence < match_object.matches[j].confidence:
+                            m[idx][0] = i
+                            m[idx][1] = match_object.matches[j]
+                    else:
+                        m.append([i,match_object.matches[j]])
+                        
+
+       
+        # match_sorted=sorted(m, key=lambda x:x[1].distance)[0 : len(view.keypoints)]
+        match_sorted= sorted(m,key=lambda x:x[1].queryIdx)
+        for match in match_sorted:
+            old_image_idx, new_image_kp_idx, old_image_kp_idx = match[0], match[1].queryIdx, match[1].trainIdx
+            if (old_image_idx,old_image_kp_idx) in self.point_map:
+                # print('old_image_idx ,new_image_kp_idx, old_image_kp_idx',match[0],match[1].queryIdx,match[1].trainIdx)
+                point_2D=match_object.pixel_points2[new_image_kp_idx].T.reshape(1,2)
+                points_2D=np.concatenate((points_2D,point_2D),axis=0) 
+                point_3D = self.points_3D[self.point_map[(old_image_idx, old_image_kp_idx)], :].T.reshape((1, 3))
+                points_3D = np.concatenate((points_3D, point_3D), axis=0)
         _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
-                                        confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
+                                confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
         R, _ = cv2.Rodrigues(R)
+
+        # print("points_2D",points_2D)
+        # input()
         return R, t
+
+
 
     def compute_pose_PNP_SIFT(self, view):
         points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))

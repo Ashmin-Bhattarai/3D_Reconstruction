@@ -7,17 +7,22 @@ import torch
 import kornia as K
 import kornia.feature as KF
 from kornia_moons.feature import *
-from PIL import Image
+# from PIL import Image
 from view import View
+
+class Match_info:
+    def __init__(self,queryIdx,trainIdx,distance,pixel_points1,pixel_points2) -> None:
+        self.queryIdx = queryIdx
+        self.trainIdx = trainIdx
+        self.distance = distance    
+        self.pixel_points1= pixel_points1
+        self.pixel_points2= pixel_points2
 
 
 class Match:
     def __init__(self, view1:'View', view2:'View') -> None:
         self.image_name1 = view1.name
         self.image_name2 = view2.name
-
-        self.image1 = view1.scaled_image
-        self.image2 = view2.scaled_image
 
         self.dataset_path = view1.dataset_path
 
@@ -55,7 +60,7 @@ class Match:
 
         if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")):
             print(f"\n=========Matching {self.image_name1} and {self.image_name2}=========")
-            self.get_matches_SIFT()
+            self.get_matches()
             print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
             # self.store_data()
             print(f"=========Done Storing {self.image_name1}-{self.image_name2}.pkl==========")
@@ -112,20 +117,23 @@ class Match:
 
 
     def get_matches(self) -> None:
-        img1 = self.load_torch_images(self.image1)
-        img2 = self.load_torch_images(self.image2)
+        img1 = self.load_torch_images(self.view1.scaled_image)
+        img2 = self.load_torch_images(self.view2.scaled_image)
 
         input_dict = {"image0": K.color.rgb_to_grayscale(img1),
                       "image1": K.color.rgb_to_grayscale(img2)}
 
         with torch.no_grad():
-            output_dict = self.matcher(input_dict)
+            self.output_dict = self.matcher(input_dict)
 
-        self.scaled_pixel_points1 = output_dict["keypoints0"].cpu().numpy()
-        self.scaled_pixel_points2 = output_dict["keypoints1"].cpu().numpy()
+        self.confidence = self.output_dict['confidence'].cpu().numpy()
+        
+        self.scaled_pixel_points1 = self.output_dict["keypoints0"].cpu().numpy()
+        self.scaled_pixel_points2 = self.output_dict["keypoints1"].cpu().numpy()
 
         self.pixel_points1 = self.scaled_pixel_points1 // self.view1.scale
         self.pixel_points2 = self.scaled_pixel_points2 // self.view2.scale
+
 
         self.indices1=[i for i in range(len(self.pixel_points1))]
         self.indices2=[i for i in range(len(self.pixel_points2))]
@@ -140,7 +148,11 @@ class Match:
             self.K = np.zeros((3, 3))
             self.E = np.zeros((3, 3))
             self.mask = np.zeros(len(self.pixel_points1))
-       
+
+        for i in range(len(self.pixel_points1)):
+            self.matches.append(Match_info(self.indices1[i], self.indices2[i], self.confidence[i],self.pixel_points1[i], self.pixel_points2[i]))
+
+            
     
     def load_data(self) -> None:
         PIK = os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")
@@ -182,19 +194,19 @@ class Match:
         return image
 
     def draw_matches(self)->None:
-        # img1 = self.rescale_image(self.image1)
-        # img2 = self.rescale_image(self.image2)
+        # img1 = self.rescale_image(self.view1.scaled_image)
+        # img2 = self.rescale_image(self.view2.scaled_image)
 
-        concatImg = np.zeros((max(self.image1.shape[0], self.image2.shape[0]), self.image1.shape[1] + self.image2.shape[1], 3), dtype=np.uint8) 
+        concatImg = np.zeros((max(self.view1.scaled_image.shape[0], self.view2.scaled_image.shape[0]), self.view1.scaled_image.shape[1] + self.view2.scaled_image.shape[1], 3), dtype=np.uint8) 
         concatImg[:, :] = (255, 255, 255)
-        concatImg[:self.image1.shape[0], :self.image1.shape[1], :3] = self.image1
-        concatImg[:self.image2.shape[0], self.image1.shape[1]:, :3] = self.image2
+        concatImg[:self.view1.scaled_image.shape[0], :self.view1.scaled_image.shape[1], :3] = self.view1.scaled_image
+        concatImg[:self.view2.scaled_image.shape[0], self.view1.scaled_image.shape[1]:, :3] = self.view2.scaled_image
 
-        # concatImg = np.concatenate((self.image1, self.image2), axis=1)
+        # concatImg = np.concatenate((self.view1.scaled_image, self.view2.scaled_image), axis=1)
 
         for (p1, p2) in random.sample(list(zip(self.scaled_pixel_points1, self.scaled_pixel_points2)), 50):
             starting_point = (int(p1[0]), int(p1[1]))
-            ending_point = (int(p2[0] + self.image1.shape[1]), int(p2[1]))
+            ending_point = (int(p2[0] + self.view1.scaled_image.shape[1]), int(p2[1]))
             cv2.circle(concatImg, starting_point, 5, (0, 255, 0), -1)
             cv2.circle(concatImg, ending_point, 5, (0, 255, 0), -1)
             cv2.line(concatImg, starting_point, ending_point, (0, 255, 0), 2)
@@ -206,7 +218,12 @@ class Match:
 def create_matches(views:'list[View]') -> 'dict[Match]':
     matches = {}
     for i in range(len(views)-1):
+        if i==0:
+            views[i].reload_image()
         for j in range(i+1, len(views)):
+            if i==0:
+                views[j].reload_image()
             matches[(views[i].name, views[j].name)] = Match(views[i], views[j])
+        views[i].unload_image()
     return matches
         

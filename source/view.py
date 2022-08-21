@@ -32,6 +32,17 @@ class View:
         self.t = np.zeros((3, 1), dtype=float)  # translation vector for the view
 
         self.extract_features()
+        self.unload_image()
+    
+    def unload_image(self):
+        self.image = None
+        self.scaled_image = None
+    
+    def reload_image(self):
+        self.image = cv2.imread(os.path.join(self.image_path, self.name+".jpg"))
+        self.scaled_image = cv2.resize(self.image, (self.scaled_width, self.scaled_height))
+        self.image = None
+
 
     
     def extract_features(self):
@@ -42,7 +53,7 @@ class View:
 
     def load_camera_parameters(self):
         data = pd.read_csv(os.path.join(self.dataset_path, "calibration.csv"))
-        df=data.loc[data['image_id']==self.name,'camera_intrinsics']
+        df=data.loc[data['image_id']=="a",'camera_intrinsics']
         self.K = np.array([i for i in df.values[0].split()], dtype=np.float32).reshape(3,3)
 
 
