@@ -5,6 +5,9 @@ import cv2
 import utils
 import os
 
+match_technique = 'SIFT'
+# match_technique = 'LoFTR'
+
 class SFM:
     def __init__(self, views, matches):
         self.views = views
@@ -35,29 +38,23 @@ class SFM:
             matchObject = self.matches[(view1.name, view2.name)]
             baselinePose = Baseline(view1, view2, matchObject)
             view2.R, view2.t = baselinePose.get_pose()
-            # print('rotation matrix: ', view2.R)
-            # print('translation vector: ', view2.t)
-            
             rpe1, rpe2 = self.triangulate(view1, view2)
-            # print('reprojection error1: ', np.mean(rpe1))
-            # print('reprojection error2: ', np.mean(rpe2))
-            # input()
             self.errors.append(np.mean(rpe1))
             self.errors.append(np.mean(rpe2))
 
             self.done.append(view1)
             self.done.append(view2)
         else:
-            view1.R, view1.t = self.compute_pose_PNP(view1)
+            if match_technique == 'LoFTR':
+                view1.R, view1.t = self.compute_pose_PNP(view1)
+            elif match_technique == 'SIFT':
+                view1.R, view1.t = self.compute_pose_PNP_SIFT(view1)
             errors=[]
 
             for i, old_view in enumerate(self.done):
                 match_object = self.matches[(old_view.name, view1.name)]
-                # _ = utils.remove_outliers_using_F(old_view, view1, match_object)
                 self.remove_mapped_points(match_object, i)
                 _, rpe = self.triangulate(old_view, view1)
-                # print(np.mean(rpe))
-                # input()
                 errors += rpe
             self.done.append(view1)
             self.errors.append(np.mean(errors))
@@ -70,7 +67,9 @@ class SFM:
         for i in range(2, len(self.views)):
             view = self.views[i]
             self.compute_pose(view1=self.views[i])
-            # self.plot_points()
+            if match_technique == 'SIFT':
+                self.plot_points()
+        
 
     def triangulate (self, view1, view2):
 
@@ -87,11 +86,6 @@ class SFM:
         pixel_points2 = cv2.convertPointsToHomogeneous(pixel_points2)[:, 0, :]
         reprojection_error1 = []
         reprojection_error2 = []
-
-        # print('len pixel_points1: ', len(pixel_points1))
-        # print('len inliers1: ', len(match_object.inliers1))
-        # input()
-
         for i in range(len(pixel_points1)):
 
             u1 = pixel_points1[i, :]
@@ -109,37 +103,16 @@ class SFM:
             error2 = utils.calculate_reprojection_error(point_3D, u2[0:2], view1.K, view2.R, view2.t)
             reprojection_error2.append(error2)
 
-            # print('u1',u1[0:2])
-
-            # input()
             # updates point_map with the key (index of view, index of point in the view) and value point_counter
             # multiple keys can have the same value because a 3D point is reconstructed using 2 points
             self.point_map[(self.get_index_of_view(view1), match_object.inliers1[i])] = self.point_counter
             self.point_map[(self.get_index_of_view(view2), match_object.inliers2[i])] = self.point_counter
             self.point_counter += 1
-        
-        # print(np.mean(reprojection_error1))
-        # print(np.mean(reprojection_error2))
-        # input()
 
         return reprojection_error1, reprojection_error2
 
     def compute_pose_PNP(self, view):
         points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))
-        # for old_view in self.done:
-        #     match_object=self.matches[(old_view.name, view.name)]
-        #     for i in range(len(match_object.inliers1)):
-        #         if (self.get_index_of_view(old_view), match_object.inliers1[i]) in self.point_map:
-                    
-        #             point_2D=match_object.pixel_points2[match_object.inliers2[i]].T.reshape(1,2)
-        #             points_2D=np.concatenate((points_2D,point_2D),axis=0)              
-        #             point_3D = self.points_3D[self.point_map[(self.get_index_of_view(old_view), match_object.inliers1[i])], :].T.reshape((1, 3))
-        #             points_3D = np.concatenate((points_3D, point_3D), axis=0)
-        # # compute new pose using solvePnPRansac
-        # _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
-        #                                 confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
-        # R, _ = cv2.Rodrigues(R)
-        # return R, t
         m=[]
         for i, old_view in enumerate(self.done):
             match_object=self.matches[(old_view.name, view.name)]
@@ -147,45 +120,20 @@ class SFM:
                 for mo in match_object.matches:
                     m.append([i,mo])
             else:
-                # pp2_list = [ pp for pp in match_object.pixel_points2]
                 pp2_list = [ p[1].pixel_points2 for p in m]
-                # pp2_set = set(pp2_list)
-                # print('len pp2_set: ', len(pp2_set))
-                # print('len pp2_list: ', pp2_list[0])
-                # exit()
-
-                # pp_sort = sorted(pp2_list, key=lambda x: x[0])
-
-                # # print([2087, 45] in pp2_list)
-                # for p in pp2_list:
-                #     # if [2087, 45] == p:
-                #     print(type(p[0]), type(p[1]))
-                #     exit()
-
-                # exit()
                 for j in range(len(match_object.matches)):
-                    # print("ele=====> ", type(match_object.matches[j].pixel_points2[0]), type(match_object.matches[j].pixel_points2[1]))
-                    
-                    # if match_object.matches[j].pixel_points2 in pp2_list:
                     idx, cond = self.checkPoints(match_object.matches[j].pixel_points2, pp2_list)
                     if cond:
-                        # idx = pp2_list.index(match_object.matches[j].pixel_points2)
-                        # print(idx, j)
-                        # print(match_object.matches[j].confidence)
                         if m[idx][1].confidence < match_object.matches[j].confidence:
                             m[idx][0] = i
                             m[idx][1] = match_object.matches[j]
-                    # else:
-                    #     m.append([i,match_object.matches[j]])
                         
 
-       
-        # match_sorted=sorted(m, key=lambda x:x[1].distance)[0 : len(view.keypoints)]
+
         match_sorted= sorted(m,key=lambda x:x[1].queryIdx)
         for match in match_sorted:
             old_image_idx, new_image_kp_idx, old_image_kp_idx = match[0], match[1].queryIdx, match[1].trainIdx
             if (old_image_idx,old_image_kp_idx) in self.point_map:
-                # print('old_image_idx ,new_image_kp_idx, old_image_kp_idx',match[0],match[1].queryIdx,match[1].trainIdx)
                 point_2D=match_object.pixel_points2[new_image_kp_idx].T.reshape(1,2)
                 points_2D=np.concatenate((points_2D,point_2D),axis=0) 
                 point_3D = self.points_3D[self.point_map[(old_image_idx, old_image_kp_idx)], :].T.reshape((1, 3))
@@ -194,8 +142,6 @@ class SFM:
                                 confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
         R, _ = cv2.Rodrigues(R)
 
-        # print("points_2D",points_2D)
-        # input()
         return R, t
 
     def checkPoints(self, mp, checkList):
@@ -208,22 +154,6 @@ class SFM:
 
     def compute_pose_PNP_SIFT(self, view):
         points_3D, points_2D = np.zeros((0, 3)), np.zeros((0, 2))
-        # distance=[]
-        # for i,old_view in enumerate(self.done):
-        #     match_object=self.matches[(old_view.name, view.name)]
-        #     for j in range(len(match_object.indices1)):
-        #         # distance[(self.get_index_of_view(old_view),match_object.matches[j].distance)]=(match_object.indices1[j],match_object.indices2[j])
-        #         data={"view_index":self.get_index_of_view(old_view),
-        #                 "distance":match_object.matches[j].distance,
-        #                 "indices1":match_object.indices1[j],
-        #                 "indices2":match_object.indices2[j]}
-        #         if match_object.mask[j]:
-        #             distance.append(data)
-
-            
-
-        
-        # distance_sorted=sorted(distance, key=lambda x:x["distance"])[0 : len(view.keypoints)]
         
         m=[]
         for i, old_view in enumerate(self.done):
@@ -238,12 +168,10 @@ class SFM:
                         m[j][1]=match_object.matches[j]
 
        
-        # match_sorted=sorted(m, key=lambda x:x[1].distance)[0 : len(view.keypoints)]
         match_sorted= sorted(m,key=lambda x:x[1].queryIdx)
         for match in match_sorted:
             old_image_idx, new_image_kp_idx, old_image_kp_idx = match[0], match[1].queryIdx, match[1].trainIdx
             if (old_image_idx,old_image_kp_idx) in self.point_map:
-                # print('old_image_idx ,new_image_kp_idx, old_image_kp_idx',match[0],match[1].queryIdx,match[1].trainIdx)
                 point_2D=match_object.pixel_points2[new_image_kp_idx].T.reshape(1,2)
                 points_2D=np.concatenate((points_2D,point_2D),axis=0) 
                 point_3D = self.points_3D[self.point_map[(old_image_idx, old_image_kp_idx)], :].T.reshape((1, 3))
@@ -252,56 +180,22 @@ class SFM:
                                 confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
         R, _ = cv2.Rodrigues(R)
 
-        # print("points_2D",points_2D)
-        # input()
         return R, t
 
 
 
 
-
-
-
-        '''
-        for i , old_view in enumerate(self.done):
-            
-            for j in range(len(distance_sorted)):
-                distance_sorted_element=distance_sorted[j]
-                match_object=self.matches[(self.names[distance_sorted_element["view_index"]], view.name)]
-                if (distance_sorted_element["view_index"], distance_sorted_element["indices1"]) in self.point_map:
-                    point_2D=match_object.pixel_points2[distance_sorted_element['indices2']].T.reshape(1,2)
-                    points_2D=np.concatenate((points_2D,point_2D),axis=0)              
-                    point_3D = self.points_3D[self.point_map[(distance_sorted_element["view_index"], distance_sorted_element["indices1"])], :].T.reshape((1, 3))
-                    points_3D = np.concatenate((points_3D, point_3D), axis=0)
-        _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
-                                confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
-        R, _ = cv2.Rodrigues(R)
-
-        # print("points_2D",points_2D)
-        # input()
-        return R, t
-
-        # print(distance_sorted)
-        # input()'''
 
     def plot_points(self):
             """Saves the reconstructed 3D points to ply files using Open3D"""
 
             number = len(self.done)
-            # filename = os.path.join(self.results_path, str(number) + '_images.ply')
             filename = os.path.join(self.results_path, str(number) + '_images.xyz')
-            # with open(filename, 'w') as f:
-            #     for point in self.points_3D:
-            #         f.write(str(point[0]) + ' ' + str(point[1]) + ' ' + str(point[2]) + '\n')
-            #     f.close()
             for point in self.points_3D:
                 with open(filename, 'a') as f:
                     f.write(str(point[0]) + ' ' + str(point[1]) + ' ' + str(point[2]) + '\n')
                     f.close()
-            # pcd = o3d.geometry.PointCloud()
-            # pcd.points = o3d.utility.Vector3dVector(self.points_3D)
-            # o3d.io.write_point_cloud(filename, pcd)
-
+        
     def remove_mapped_points(self, match_object, image_idx):
         """Removes points that have already been reconstructed in the completed views"""
 

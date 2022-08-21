@@ -10,6 +10,9 @@ from kornia_moons.feature import *
 # from PIL import Image
 from view import View
 
+match_technique = 'SIFT'
+# match_technique = 'LoFTR'
+
 class Match_info:
     def __init__(self,queryIdx,trainIdx,confidence,pixel_points1,pixel_points2) -> None:
         self.queryIdx = queryIdx
@@ -60,10 +63,16 @@ class Match:
 
         if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")):
             print(f"\n=========Matching {self.image_name1} and {self.image_name2}=========")
-            self.get_matches()
+            if match_technique == 'SIFT':
+                self.get_matches_SIFT()
+            elif match_technique == 'LoFTR':
+                self.get_matches()
+            
             print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
             # self.store_data()
             print(f"=========Done Storing {self.image_name1}-{self.image_name2}.pkl==========")
+            if match_technique == 'LoFTR':
+                self.draw_matches()
             # self.draw_matches()
             print(f"=========Done drawing matches for {self.image_name1} and {self.image_name2}=========")
 
@@ -84,12 +93,6 @@ class Match:
         print('len of matches:', len(self.matches))
 
         
-        
-
-        
-        # self.pixel_points1x = np.array([self.view1.keypoints[m.trainIdx].pt for m in self.matches])
-
-        # self.pixel_points2 = np.array([self.view2.keypoints[m.queryIdx].pt for m in self.matches])
         self.indices1 = [m.trainIdx for m in self.matches]
         self.indices2 = [m.queryIdx for m in self.matches]
 
@@ -97,8 +100,6 @@ class Match:
         self.pixel_points2=np.array([key.pt for key in self.view2.keypoints])
 
         print(self.pixel_points1[0])
-        # self.indices1=[i for i in range(len(self.pixel_points1))]
-        # self.indices2=[i for i in range(len(self.pixel_points2))]
 
         if len(self.pixel_points1) > 7:
             self.F, self.mask = cv2.findFundamentalMat(np.array(self.pixel_points1)[self.indices1], np.array(self.pixel_points2)[self.indices2], method=cv2.FM_RANSAC,ransacReprojThreshold=0.9, confidence=0.99)
@@ -179,13 +180,6 @@ class Match:
     def number_of_inliers(self) -> int:
         return np.sum(self.mask)
             
-    
-    # def rescale_image(self, image:'np.array') -> 'np.array':
-    #     scale = 840/max(image.shape[0], image.shape[1])
-    #     w = int(image.shape[1] * scale)
-    #     h = int(image.shape[0] * scale)
-    #     image = cv2.resize(image, (self.w, self.h))
-    #     return image
 
     def load_torch_images(self, image:'np.array') -> 'K.Tensor':
         image = K.image_to_tensor(image, False).float() /255
@@ -194,15 +188,11 @@ class Match:
         return image
 
     def draw_matches(self)->None:
-        # img1 = self.rescale_image(self.view1.scaled_image)
-        # img2 = self.rescale_image(self.view2.scaled_image)
 
         concatImg = np.zeros((max(self.view1.scaled_image.shape[0], self.view2.scaled_image.shape[0]), self.view1.scaled_image.shape[1] + self.view2.scaled_image.shape[1], 3), dtype=np.uint8) 
         concatImg[:, :] = (255, 255, 255)
         concatImg[:self.view1.scaled_image.shape[0], :self.view1.scaled_image.shape[1], :3] = self.view1.scaled_image
         concatImg[:self.view2.scaled_image.shape[0], self.view1.scaled_image.shape[1]:, :3] = self.view2.scaled_image
-
-        # concatImg = np.concatenate((self.view1.scaled_image, self.view2.scaled_image), axis=1)
 
         for (p1, p2) in random.sample(list(zip(self.scaled_pixel_points1, self.scaled_pixel_points2)), 50):
             starting_point = (int(p1[0]), int(p1[1]))
@@ -218,12 +208,7 @@ class Match:
 def create_matches(views:'list[View]') -> 'dict[Match]':
     matches = {}
     for i in range(len(views)-1):
-        if i==0:
-            views[i].reload_image()
         for j in range(i+1, len(views)):
-            if i==0:
-                views[j].reload_image()
             matches[(views[i].name, views[j].name)] = Match(views[i], views[j])
-        views[i].unload_image()
     return matches
         

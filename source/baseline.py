@@ -13,9 +13,6 @@ class Baseline:
     def get_pose(self):
         
         R1,R2,t1,t2 = utils.get_extrinsic_from_E(self.match_object.E)
-        # print('Essential Matrix: ', self.match_object.E)
-        # print('fundamental matrix: ', self.match_object.F)
-     
         if not utils.check_determinant(R1):
             R1,R2,t1,t2 = utils.get_extrinsic_from_E(-self.match_object.E)
 

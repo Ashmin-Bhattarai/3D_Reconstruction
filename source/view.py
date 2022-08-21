@@ -32,19 +32,7 @@ class View:
         self.t = np.zeros((3, 1), dtype=float)  # translation vector for the view
 
         self.extract_features()
-        self.unload_image()
-    
-    def unload_image(self):
-        self.image = None
-        self.scaled_image = None
-    
-    def reload_image(self):
-        self.image = cv2.imread(os.path.join(self.image_path, self.name+".jpg"))
-        self.scaled_image = cv2.resize(self.image, (self.scaled_width, self.scaled_height))
-        self.image = None
-
-
-    
+      
     def extract_features(self):
         sift = cv2.SIFT_create()
         self.keypoints, self.descriptors = sift.detectAndCompute(self.image, None)
@@ -65,12 +53,8 @@ class View:
 def create_views(dataset_path:'str') -> 'list[View]':
     views = []
     image_dir = os.path.join(dataset_path, 'images')
-    # print(image_dir)
-    # image_names = os.listdir(image_dir)
     image_names1 = sorted(glob.glob(os.path.join(image_dir, '*.jpg')))
     
-    # print(image_names)
-    # print(image_names1)
     for image_name in image_names1:
         imn = image_name.split('/')[-1]
         view = View(dataset_path, image_dir, imn)
