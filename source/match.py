@@ -10,8 +10,8 @@ from kornia_moons.feature import *
 # from PIL import Image
 from view import View
 
-match_technique = 'SIFT'
-# match_technique = 'LoFTR'
+# match_technique = 'SIFT'
+match_technique = 'LoFTR'
 
 class Match_info:
     def __init__(self,queryIdx,trainIdx,confidence,pixel_points1,pixel_points2) -> None:
@@ -59,7 +59,7 @@ class Match:
 
         if not os.path.exists(os.path.join(self.dataset_path, "matches")):
             os.makedirs(os.path.join(self.dataset_path, "matches"))
-            os.makedirs(os.path.join(self.dataset_path, "features"))
+            # os.makedirs(os.path.join(self.dataset_path, "features"))
 
         if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")):
             print(f"\n=========Matching {self.image_name1} and {self.image_name2}=========")
@@ -138,6 +138,7 @@ class Match:
 
         self.indices1=[i for i in range(len(self.pixel_points1))]
         self.indices2=[i for i in range(len(self.pixel_points2))]
+        
         if len(self.pixel_points1) > 7:
             self.F, self.mask = cv2.findFundamentalMat(self.pixel_points1, self.pixel_points2, cv2.USAC_MAGSAC, 0.1845, 0.999999, 220000)
             self.mask = self.mask.astype(bool).flatten()

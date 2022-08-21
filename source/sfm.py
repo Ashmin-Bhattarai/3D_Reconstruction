@@ -5,8 +5,8 @@ import cv2
 import utils
 import os
 
-match_technique = 'SIFT'
-# match_technique = 'LoFTR'
+# match_technique = 'SIFT'
+match_technique = 'LoFTR'
 
 class SFM:
     def __init__(self, views, matches):
@@ -134,10 +134,15 @@ class SFM:
         for match in match_sorted:
             old_image_idx, new_image_kp_idx, old_image_kp_idx = match[0], match[1].queryIdx, match[1].trainIdx
             if (old_image_idx,old_image_kp_idx) in self.point_map:
-                point_2D=match_object.pixel_points2[new_image_kp_idx].T.reshape(1,2)
-                points_2D=np.concatenate((points_2D,point_2D),axis=0) 
-                point_3D = self.points_3D[self.point_map[(old_image_idx, old_image_kp_idx)], :].T.reshape((1, 3))
-                points_3D = np.concatenate((points_3D, point_3D), axis=0)
+                
+                try:
+                    point_2D=match_object.pixel_points2[new_image_kp_idx].T.reshape(1,2)
+                    points_2D=np.concatenate((points_2D,point_2D),axis=0) 
+                    point_3D = self.points_3D[self.point_map[(old_image_idx, old_image_kp_idx)], :].T.reshape((1, 3))
+                    points_3D = np.concatenate((points_3D, point_3D), axis=0)
+                except:
+                    pass
+
         _, R, t, _ = cv2.solvePnPRansac(points_3D[:, np.newaxis], points_2D[:, np.newaxis], view.K, None,
                                 confidence=0.99, reprojectionError=8.0, flags=cv2.SOLVEPNP_DLS)
         R, _ = cv2.Rodrigues(R)
