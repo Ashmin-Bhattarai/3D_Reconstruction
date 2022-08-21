@@ -11,10 +11,10 @@ from kornia_moons.feature import *
 from view import View
 
 class Match_info:
-    def __init__(self,queryIdx,trainIdx,distance,pixel_points1,pixel_points2) -> None:
+    def __init__(self,queryIdx,trainIdx,confidence,pixel_points1,pixel_points2) -> None:
         self.queryIdx = queryIdx
         self.trainIdx = trainIdx
-        self.distance = distance    
+        self.confidence = confidence
         self.pixel_points1= pixel_points1
         self.pixel_points2= pixel_points2
 

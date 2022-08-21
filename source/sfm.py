@@ -48,7 +48,7 @@ class SFM:
             self.done.append(view1)
             self.done.append(view2)
         else:
-            view1.R, view1.t = self.compute_pose_PNP_SIFT(view1)
+            view1.R, view1.t = self.compute_pose_PNP(view1)
             errors=[]
 
             for i, old_view in enumerate(self.done):
@@ -70,7 +70,7 @@ class SFM:
         for i in range(2, len(self.views)):
             view = self.views[i]
             self.compute_pose(view1=self.views[i])
-            self.plot_points()
+            # self.plot_points()
 
     def triangulate (self, view1, view2):
 
@@ -147,15 +147,36 @@ class SFM:
                 for mo in match_object.matches:
                     m.append([i,mo])
             else:
-                pp2_list = [ pp for pp in match_object.pixel_points2]
+                # pp2_list = [ pp for pp in match_object.pixel_points2]
+                pp2_list = [ p[1].pixel_points2 for p in m]
+                # pp2_set = set(pp2_list)
+                # print('len pp2_set: ', len(pp2_set))
+                # print('len pp2_list: ', pp2_list[0])
+                # exit()
+
+                # pp_sort = sorted(pp2_list, key=lambda x: x[0])
+
+                # # print([2087, 45] in pp2_list)
+                # for p in pp2_list:
+                #     # if [2087, 45] == p:
+                #     print(type(p[0]), type(p[1]))
+                #     exit()
+
+                # exit()
                 for j in range(len(match_object.matches)):
-                    if match_object.matches[j].pixel_points2 in pp2_list:
-                        idx = pp2_list.index(match_object.matches[j].pixel_points2)
+                    # print("ele=====> ", type(match_object.matches[j].pixel_points2[0]), type(match_object.matches[j].pixel_points2[1]))
+                    
+                    # if match_object.matches[j].pixel_points2 in pp2_list:
+                    idx, cond = self.checkPoints(match_object.matches[j].pixel_points2, pp2_list)
+                    if cond:
+                        # idx = pp2_list.index(match_object.matches[j].pixel_points2)
+                        # print(idx, j)
+                        # print(match_object.matches[j].confidence)
                         if m[idx][1].confidence < match_object.matches[j].confidence:
                             m[idx][0] = i
                             m[idx][1] = match_object.matches[j]
-                    else:
-                        m.append([i,match_object.matches[j]])
+                    # else:
+                    #     m.append([i,match_object.matches[j]])
                         
 
        
@@ -176,6 +197,12 @@ class SFM:
         # print("points_2D",points_2D)
         # input()
         return R, t
+
+    def checkPoints(self, mp, checkList):
+        for i in range(len(checkList)):
+            if mp[0] == checkList[i][0] and mp[1] == checkList[i][1]:
+                return i, True
+        return -1, False
 
 
 

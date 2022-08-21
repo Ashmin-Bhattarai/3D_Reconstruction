@@ -5,7 +5,7 @@ import sfm
 import os
 import pathlib
 
-dataset_folder_name = 'fountain'
+dataset_folder_name = 'fountainN'
 
 root_path = pathlib.Path(__file__).parent.parent
 dataset_path = os.path.join(root_path, 'datasets' ,dataset_folder_name)
