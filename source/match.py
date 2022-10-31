@@ -1,17 +1,24 @@
 import os
+import sys
+from pympler import asizeof
 import cv2
 import random
 import pickle
 import numpy as np
 import torch
-import kornia as K
+# import kornia as K
+from kornia import image_to_tensor, color
 import kornia.feature as KF
-from kornia_moons.feature import *
+# from kornia_moons.feature import *
 # from PIL import Image
 from view import View
 
 # match_technique = 'SIFT'
 match_technique = 'LoFTR'
+
+device = torch.device('cuda')
+matcher = KF.LoFTR(pretrained='outdoor')
+matcher.to(device).eval()
 
 class Match_info:
     def __init__(self,queryIdx,trainIdx,confidence,pixel_points1,pixel_points2) -> None:
@@ -24,35 +31,42 @@ class Match_info:
 
 class Match:
     def __init__(self, view1:'View', view2:'View') -> None:
-        self.image_name1 = view1.name
-        self.image_name2 = view2.name
+        self.image_name1 = view1.image_name
+        self.image_name2 = view2.image_name
+
+        self.view_name1 = view1.view_name
+        self.view_name2 = view2.view_name
+
+        self.view_no1 = view1.view_no
+        self.view_no2 = view2.view_no
 
         self.dataset_path = view1.dataset_path
 
-        self.view1 = view1
-        self.view2 = view2
+        # self.view1 = view1
+        # self.view2 = view2
 
-        self.pixel_points1 = []
-        self.pixel_points2 = []
+        # self.pixel_points1 = []
+        # self.pixel_points2 = []
 
-        self.indices1 = []
-        self.indices2 = []
+        # self.indices1 = []
+        # self.indices2 = []
         
-        self.inliers1 = []
-        self.inliers2 = []
+        # self.inliers1 = []
+        # self.inliers2 = []
 
-        self.scaled_pixel_points1 = []
-        self.scaled_pixel_points2 = []
+        # self.scaled_pixel_points1 = []
+        # self.scaled_pixel_points2 = []
 
-        self.F = np.zeros((3, 3))
-        self.E = np.zeros((3, 3))
-        self.mask = []
+        # self.F = np.zeros((3, 3))
+        # self.E = np.zeros((3, 3))
+        # self.mask = []
 
-        self.matcher_SIFT = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
+        # self.matcher_SIFT = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
 
-        self.device = torch.device('cpu')
-        self.matcher = KF.LoFTR(pretrained='outdoor')
-        self.matcher.to(self.device).eval()
+        # self.device = torch.device('cpu')
+        # self.matcher = KF.LoFTR(pretrained='outdoor')
+        # self.matcher.to(self.device).eval()
+        
         self.matches=[]
 
 
@@ -61,18 +75,21 @@ class Match:
             os.makedirs(os.path.join(self.dataset_path, "matches"))
             # os.makedirs(os.path.join(self.dataset_path, "features"))
 
-        if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.image_name1}-{self.image_name2}.pkl")):
+
+        if not os.path.exists(os.path.join(self.dataset_path, "features", f"{self.view_name1}-{self.view_name2}.pkl")):
             print(f"\n=========Matching {self.image_name1} and {self.image_name2}=========")
             if match_technique == 'SIFT':
                 self.get_matches_SIFT()
             elif match_technique == 'LoFTR':
-                self.get_matches()
+                self.get_matches(view1.get_image(), view2.get_image())
             
             print(f"=========Done matching {self.image_name1} and {self.image_name2}=========")
             # self.store_data()
             print(f"=========Done Storing {self.image_name1}-{self.image_name2}.pkl==========")
-            if match_technique == 'LoFTR':
-                self.draw_matches()
+            
+            # if match_technique == 'LoFTR':
+            #     self.draw_matches()
+                
             # self.draw_matches()
             print(f"=========Done drawing matches for {self.image_name1} and {self.image_name2}=========")
 
@@ -117,20 +134,30 @@ class Match:
 
 
 
-    def get_matches(self) -> None:
-        img1 = self.load_torch_images(self.view1.scaled_image)
-        img2 = self.load_torch_images(self.view2.scaled_image)
+    def get_matches(self, img1, img2) -> None:
+        # self.view1.load_image()
+        # self.view2.load_image()
 
-        input_dict = {"image0": K.color.rgb_to_grayscale(img1),
-                      "image1": K.color.rgb_to_grayscale(img2)}
+        img1 = self.load_torch_images(img1)
+        img2 = self.load_torch_images(img2)
+        
+        # self.view1.unload_image()
+        # self.view2.unload_image()
+
+        input_dict = {"image0": color.rgb_to_grayscale(img1),
+                      "image1": color.rgb_to_grayscale(img2)}
 
         with torch.no_grad():
-            self.output_dict = self.matcher(input_dict)
+            output_dict = matcher(input_dict)
 
-        self.confidence = self.output_dict['confidence'].cpu().numpy()
+        # print(f"Size of output dict: {asizeof.asizeof(self.output_dict)}")
+
+        self.confidence = output_dict['confidence'].cpu().numpy()
         
-        self.scaled_pixel_points1 = self.output_dict["keypoints0"].cpu().numpy()
-        self.scaled_pixel_points2 = self.output_dict["keypoints1"].cpu().numpy()
+        self.scaled_pixel_points1 = output_dict["keypoints0"].cpu().numpy()
+        self.scaled_pixel_points2 = output_dict["keypoints1"].cpu().numpy()
+
+        return
 
         self.pixel_points1 = self.scaled_pixel_points1 // self.view1.scale
         self.pixel_points2 = self.scaled_pixel_points2 // self.view2.scale
@@ -183,9 +210,9 @@ class Match:
             
 
     def load_torch_images(self, image:'np.array') -> 'K.Tensor':
-        image = K.image_to_tensor(image, False).float() /255
-        image = K.color.bgr_to_rgb(image)
-        image = image.to(self.device)
+        image = image_to_tensor(image, False).float() /255
+        image = color.bgr_to_rgb(image)
+        image = image.to(device)
         return image
 
     def draw_matches(self)->None:
@@ -210,6 +237,13 @@ def create_matches(views:'list[View]') -> 'dict[Match]':
     matches = {}
     for i in range(len(views)-1):
         for j in range(i+1, len(views)):
-            matches[(views[i].name, views[j].name)] = Match(views[i], views[j])
+            m_obj = Match(views[i], views[j])
+            matches[(views[i].view_name, views[j].view_name)] = m_obj
+
+            print(f"SIze of match obj: {asizeof.asizeof(m_obj)}")
+            # print(f"Size of output dic from out: {asizeof.asizeof(m_obj.output_dict)}")
+            print(f"SIze of match dict: {asizeof.asizeof(matches)}")
+            print(f"Match complete {i = } {j = }")
+            # input()
     return matches
         
