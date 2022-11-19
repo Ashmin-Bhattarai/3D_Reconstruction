@@ -14,10 +14,10 @@ class View:
         self.dataset_path = dataset_path
         self.view_no = view_no
         
-        # self.image = cv2.imread(os.path.join(self.image_path, self.name_ext))
+        self.image = cv2.imread(os.path.join(self.image_path, self.name_ext))
                 
-        # self.height = self.image.shape[0]
-        # self.width = self.image.shape[1]
+        self.height = self.image.shape[0]
+        self.width = self.image.shape[1]
 
         self.K = np.zeros((3, 3))
 
@@ -33,9 +33,9 @@ class View:
         # self.R = np.zeros((3, 3), dtype=float)  # rotation matrix for the view
         # self.t = np.zeros((3, 1), dtype=float)  # translation vector for the view
 
-        # self.extract_features()
+        self.extract_features()
 
-        # self.unload_image()
+        self.unload_image()
 
 
     def unload_image(self):
@@ -47,9 +47,9 @@ class View:
     def get_image(self):
         return cv2.imread(os.path.join(self.image_path, self.image_name))
       
-    # def extract_features(self):
-    #     sift = cv2.SIFT_create()
-    #     self.keypoints, self.descriptors = sift.detectAndCompute(self.image, None)
+    def extract_features(self):
+        sift = cv2.SIFT_create()
+        self.keypoints, self.descriptors = sift.detectAndCompute(self.image, None)
 
 
 
