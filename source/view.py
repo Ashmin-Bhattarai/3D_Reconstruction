@@ -21,12 +21,12 @@ class View:
         self.width = self.image.shape[1]
 
         self.K = np.zeros((3, 3))
-        self.load_camera_parameters()
+        # self.load_camera_parameters()
 
-        self.scale = 840/max(self.image.shape[0], self.image.shape[1])
-        self.scaled_height = int(self.image.shape[0] * self.scale)
-        self.scaled_width = int(self.image.shape[1] * self.scale)
-        self.scaled_image = cv2.resize(self.image, (self.scaled_width, self.scaled_height))
+        # self.scale = 840/max(self.image.shape[0], self.image.shape[1])
+        # self.scaled_height = int(self.image.shape[0] * self.scale)
+        # self.scaled_width = int(self.image.shape[1] * self.scale)
+        # self.scaled_image = cv2.resize(self.image, (self.scaled_width, self.scaled_height))
         
         self.R = np.zeros((3, 3), dtype=float)  # rotation matrix for the view
         self.t = np.zeros((3, 1), dtype=float)  # translation vector for the view
@@ -43,12 +43,6 @@ class View:
         data = pd.read_csv(os.path.join(self.dataset_path, "calibration.csv"))
         df=data.loc[data['image_id']=="a",'camera_intrinsics']
         self.K = np.array([i for i in df.values[0].split()], dtype=np.float32).reshape(3,3)
-
-
-
-
-    
-        
 
 def create_views(dataset_path:'str') -> 'list[View]':
     views = []
