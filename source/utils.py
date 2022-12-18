@@ -156,38 +156,35 @@ def get_pixel_points(match_object):
     return pixel_points1, pixel_points2
 
 
-def sort_images(matches: dict) -> list:
-    """sort images based on number of inliners"""
-    images = [item for _match in list(matches) for item in _match]
-    inliers_scores = {
-        pair: _match.number_of_inliers() for pair, _match in matches.items()
-    }
-    sorted_images = []
+def sort_views(matches: dict) -> list:
+    """sort views based on number of inliners"""
+
+    images = set(item for _match in list(matches) for item in _match)
+    inliers_scores = {(_match.view1, _match.view2): _match.number_of_inliers() for _match in matches.values()}
+    sorted_views = sorted(
+        list({view for view_pair in inliers_scores.keys() for view in view_pair if "baseline" in view.name}),
+        key=lambda view: view.name,
+    )
 
     def sort(scores: dict) -> None:
         while scores:
             _max = max(scores.items(), key=operator.itemgetter(1))[0]
-            if item := set(_max) - set(sorted_images):
-                sorted_images.extend(item)
+            if item := set(_max) - set(sorted_views):
+                sorted_views.extend(item)
                 break
 
-            elif len(sorted_images) == len(set(images)):
+            elif len(sorted_views) == len(images):
                 return
 
             else:
                 del scores[_max]
-                continue
 
         if _max in inliers_scores:
             del inliers_scores[_max]
 
         if inliers_scores:
-            temp_scores = {
-                key: value
-                for key, value in inliers_scores.items()
-                if set(_max) & set(key)
-            }
+            temp_scores = {key: value for key, value in inliers_scores.items() if set(_max) & set(key)}
             sort(temp_scores)
 
     sort(inliers_scores)
-    return sorted_images
+    return sorted_views
