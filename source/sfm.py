@@ -23,8 +23,8 @@ class SFM:
             self.names.append(view.name)
         
         # print(self.views)
-        if not os.path.exists(self.views[0].dataset_path + '/points'):
-            os.makedirs(self.views[0].dataset_path + '/points')
+        if not os.path.exists(f"{self.views[0].dataset_path}/points"):
+            os.makedirs(f"{self.views[0].dataset_path}/points")
 
         # store results in a root_path/points
         self.results_path = os.path.join(self.views[0].dataset_path, 'points')
