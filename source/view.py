@@ -21,7 +21,7 @@ class View:
         self.width = self.image.shape[1]
 
         self.K = np.zeros((3, 3))
-        # self.load_camera_parameters()
+        self.load_camera_parameters()
 
         # self.scale = 840/max(self.image.shape[0], self.image.shape[1])
         # self.scaled_height = int(self.image.shape[0] * self.scale)
@@ -32,7 +32,6 @@ class View:
         self.t = np.zeros((3, 1), dtype=float)  # translation vector for the view
 
         self.extract_features()
-        self.load_camera_parameters()
 
     def extract_features(self):
         sift = cv2.SIFT_create()

@@ -159,7 +159,7 @@ def get_pixel_points(match_object):
 def sort_views(matches: dict) -> list:
     """sort views based on number of inliners"""
 
-    images = set(item for _match in list(matches) for item in _match)
+    images = {item for _match in list(matches) for item in _match}
     inliers_scores = {(_match.view1, _match.view2): _match.number_of_inliers() for _match in matches.values()}
     sorted_views = sorted(
         list({view for view_pair in inliers_scores.keys() for view in view_pair if "baseline" in view.name}),
