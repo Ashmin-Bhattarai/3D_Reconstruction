@@ -14,7 +14,7 @@ from captureCalibrationImages import detect_checker_board
 imgDirName:str = "images" # folder name to store images, give only the name of the folder not the path
 patternSize:tuple = (6, 8) # number of inner corners in the checker board pattern
 squareSize:float = 1 # size of the square in the checker board pattern
-squareSize:float = 25 #gitignore 
+squareSize:float = 30 #gitignore 
 
 # main function
 def main():
