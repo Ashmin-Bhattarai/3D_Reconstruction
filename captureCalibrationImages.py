@@ -7,7 +7,7 @@
 
 # defining global variables
 imgDirName:str = "images" # folder name to store images, give only the name of the folder not the path
-videoURL = "http://192.168.1.13:8080/video" # gitignore videoURL = 0 # 0 for webcam and URL for IP camera or video file path for video file 
+ videoURL = 0 # 0 for webcam and URL for IP camera or video file path for video file 
 patternSize:tuple = (6, 8) # number of inner corners in the checker board pattern
 
 
