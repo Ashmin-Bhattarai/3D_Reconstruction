@@ -9,3 +9,10 @@
 /reference/*
 *.ipynb
 /*.ipynb
+/images
+/images/*
+/__pycache__
+/__pycache__/*
+try.ipynb
+try.py
+calibration.txt
