@@ -4,10 +4,16 @@
 /datasets
 /datasets/*
 
-/source/__pycache__
-/source/__pycache__/*
+/__pycache__
+/__pycache__/*
 
 /.major/*
 /.vscode/*
 /reference/*
 
+/images
+/images/*
+
+try.ipynb
+try.py
+calibration.txt
