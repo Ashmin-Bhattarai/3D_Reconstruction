@@ -1,4 +1,6 @@
 import operator
+import pickle
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -188,3 +190,15 @@ def sort_views(matches: dict) -> list:
 
     sort(inliers_scores)
     return sorted_views
+
+
+def write_data(path: Path, data: list) -> None:
+    """Store data to pickle file"""
+    with open(path, "wb") as file:
+        pickle.dump(data, file)
+
+
+def read_data(path: Path) -> list:
+    """Store data from pickle file"""
+    with open(path, "rb") as file:
+        return pickle.load(file)

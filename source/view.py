@@ -1,9 +1,10 @@
-from posixpath import split
+import glob
+import os
+
+import cv2
 import numpy as np
 import pandas as pd
-import cv2
-import os
-import glob
+from utils import read_data, write_data
 
 
 class View:
@@ -31,7 +32,31 @@ class View:
         self.R = np.zeros((3, 3), dtype=float)  # rotation matrix for the view
         self.t = np.zeros((3, 1), dtype=float)  # translation vector for the view
 
-        self.extract_features()
+        # self.extract_features()
+        if not (features_path := self.dataset_path / "features").exists():
+            features_path.mkdir()
+
+        if not (path := features_path / f"{self.name}.pkl").exists():
+            self.extract_features()
+            _data = [
+                (point.pt, point.size, point.angle, point.response, point.octave, point.class_id, self.descriptors[idx])
+                for idx, point in enumerate(self.keypoints)
+            ]
+            write_data(path, _data)
+        else:
+            keypoints = []
+            descriptors = []
+
+            for point in read_data(path):
+                keypoint = cv2.KeyPoint(
+                    x=point[0][0], y=point[0][1], size=point[1], angle=point[2], response=point[3], octave=point[4], class_id=point[5]
+                )
+                descriptor = point[6]
+                keypoints.append(keypoint)
+                descriptors.append(descriptor)
+
+            self.keypoints = keypoints
+            self.descriptors = np.array(descriptors)
 
     def extract_features(self):
         sift = cv2.SIFT_create()
@@ -59,4 +84,5 @@ def create_views(dataset_path: "str") -> "list[View]":
         imn = image_name.split("/")[-1]
         view = View(dataset_path, image_dir, imn)
         views.append(view)
+
     return np.array(views)

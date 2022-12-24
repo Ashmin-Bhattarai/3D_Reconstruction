@@ -17,6 +17,13 @@ repos:
       - id: ruff
         args:
           - --fix
+          - --ignore
+          - E501
+          - --extend-ignore
+          - F821
+          - --extend-ignore
+          - F841
+        # args: ["--fix", "--ignore", "['E501' 'F821' 'F841']"] # Ignore line length, Undefined name and assigned but never used
   - repo: https://github.com/pycqa/isort
     rev: 5.10.1
     hooks:
@@ -26,5 +33,4 @@ repos:
     rev: 22.10.0
     hooks:
       - id: black
-        args:
-          - --line-length 150
+        args: ["--line-length", "150"]
