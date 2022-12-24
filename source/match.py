@@ -23,7 +23,7 @@ class Match_info:
 
 
 class Match:
-    def __init__(self, view1:'View', view2:'View') -> None:
+    def __init__(self, view1:View, view2:View) -> None:
         self.image_name1 = view1.name
         self.image_name2 = view2.name
 
